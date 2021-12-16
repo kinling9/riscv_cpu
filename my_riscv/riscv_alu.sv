@@ -93,7 +93,7 @@ always_comb begin : ONUM_handle
     // FIXME test >>>
     17'b0100000_101_0110011: o_num <= i_num1s >>> shamt_rs; // SRA
     17'b0000000_110_0110011: o_num <= i_num1 | i_num2; // OR
-    17'b0000000_111_0110011: o_num <= i_num1 & shamt_rs; // AND
+    17'b0000000_111_0110011: o_num <= i_num1 & i_num2; // AND
     // FIXME NO fence ecall csr
     default:                 o_num <= 0; // output 0 for default
   endcase
