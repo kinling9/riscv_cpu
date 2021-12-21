@@ -13,6 +13,12 @@ module riscv_alu(
 // input and output for the alu
 // i stand for input, o stand for output
 
+// a complex alu for all functions, need processed imm input
+// connect to register by datapath NOT YET
+// don't get any control instructions
+// these instruction will be processed by outsider module NOT YET
+
+
 
 parameter OP_JAL    = 7'b1101111;
 parameter OP_JALR   = 7'b1100111;
@@ -75,6 +81,7 @@ always_comb begin : ONUM_handle
     17'bxxxxxxx_xxx_110x111: o_num <= i_pc + 4;      // JAL and JALR
     17'bxxxxxxx_000_0010011: o_num <= num1_plus_imm; // ADDI
     17'bxxxxxxx_010_0010011: o_num <= (i_num1s < i_imm_nums) ? 1 : 0; //SLTI
+    // just for compare, use sign-extension immediate num
     17'bxxxxxxx_011_0010011: o_num <= (i_num1 < i_imm_num) ? 1 : 0; //SLTIU
     17'bxxxxxxx_100_0010011: o_num <= i_num1 ^ i_imm_num; // XORI
     17'bxxxxxxx_110_0010011: o_num <= i_num1 | i_imm_num; // ORI
