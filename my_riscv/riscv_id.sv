@@ -88,7 +88,17 @@ always_comb begin
     default: o_imm_num <= 0;
   endcase
 end
+// R type instruction don't need a immediate num
 
-  
+always_comb begin
+  case(instr_type)
+    R_TYPE : {o_src2_reg_en, o_src1_reg_en} <= 2'b11;
+    I_TYPE : {o_src2_reg_en, o_src1_reg_en} <= 2'b01;
+    S_TYPE : {o_src2_reg_en, o_src1_reg_en} <= 2'b11;
+    B_TYPE : {o_src2_reg_en, o_src1_reg_en} <= 2'b11;
+    default: {o_src2_reg_en, o_src1_reg_en} <= 2'b00;
+  endcase
 end
+  
+endmodule
 
