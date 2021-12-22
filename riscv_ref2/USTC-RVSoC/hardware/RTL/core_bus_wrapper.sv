@@ -18,7 +18,7 @@ logic [3:0]  byte_enable;
 
 assign addr_bus = {i_addr[31:2], 2'b0};
 assign addr_lsb = i_addr[1:0];
-
+// 使用bus获得对齐的数据地址
 assign o_conflict = (bus_master.rd_req & ~bus_master.rd_gnt) | (bus_master.wr_req & ~bus_master.wr_gnt);
 
 assign bus_master.rd_req  = i_re;
@@ -45,7 +45,7 @@ always_comb
                     else                     byte_enable <= 4'b0000;
         default   :                          byte_enable <= 4'b0000;
     endcase
-
+// 用来在比特对齐的情况下进行数据的读取和写入
 
 always_comb
     case(i_funct3)
