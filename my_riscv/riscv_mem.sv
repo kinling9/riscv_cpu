@@ -7,7 +7,7 @@ module riscv_mem(
   input logic [31:0] i_addr,
   input logic [31:0] i_wdata,
   output logic [31:0] o_raddr,
-  output logic bus_stall,
+  output logic o_bus_stall,
   dualport_bus.master mem_master 
 );
 
@@ -20,8 +20,11 @@ logic [31:0] wdata;
 // byte enable and possible write data
 
 logic re_latch;
-logic o_conflict_latch;
+logic o_bus_stall_latch;
 logic [31:0] rdata_latch;
+
+assign o_bus_stall = (bus_master.rd_req & ~bus_master.rd_gnt) | (bus_master.wr_req & ~bus_master.wr_gnt);
+// 总线无响应信号，其他组件在接收到该信号后需要停止数据的传递过程
 
 assign addr_bus = {i_addr[31:2], 2'b00};
 assign addr_lsb = i_addr[1:0];
@@ -112,18 +115,18 @@ end
 always_ff @(posedge clk or negedge rst_n) begin 
   if (~rst_n) begin
     i_re_latch  <= 1'b0;
-    o_conflict_latch <= 1'b0;
+    o_bus_stall_latch <= 1'b0;
     rdata_latch <= 0;
   end else begin
     i_re_latch  <= i_re;
-    o_conflict_latch <= o_conflict;
+    o_bus_stall_latch <= o_bus_stall;
     rdata_latch <= o_rdata;
   end
 end
 
 always_comb begin
   if(i_re_latch) begin
-    if(~o_conflict_latch)
+    if(~o_bus_stall_latch)
       case(rd_funct3)
         3'b000: if (rd_addr_lsb==2'b00) o_rdata <= {{24{rdata[7]}}, rdata[7:0]};
                 else if(rd_addr_lsb==2'b01) o_rdata <= {{24{rdata[15]}}, rdata[15:8]};

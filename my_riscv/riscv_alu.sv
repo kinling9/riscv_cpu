@@ -9,7 +9,7 @@ module riscv_alu(
   output logic o_if_branch,
   output logic [31:0] o_num,
   output logic [31:0] o_pc
-)
+);
 // input and output for the alu
 // i stand for input, o stand for output
 
@@ -88,7 +88,6 @@ always_comb begin : ONUM_handle
     17'bxxxxxxx_111_0010011: o_num <= i_num1 & i_imm_num; // ANDI
     17'b0000000_001_0010011: o_num <= i_num1 << shamt; // SLLI
     17'b0000000_101_0010011: o_num <= i_num1 >> shamt; // SRLI
-    // FIXME test >>>
     17'b0100000_101_0010011: o_num <= i_num1s >>> shamt; // SRAI
     17'b0000000_000_0110011: o_num <= i_num1 + i_num2; // ADD
     17'b0100000_000_0110011: o_num <= i_num1 - i_num2; // SUB
@@ -97,7 +96,6 @@ always_comb begin : ONUM_handle
     17'b0000000_011_0110011: o_num <= (i_num1 < i_num2) ? 1 : 0; // SLTU
     17'b0000000_100_0110011: o_num <= i_num1 ^ i_num2; // XOR
     17'b0000000_101_0110011: o_num <= i_num1 >> shamt_rs; // SRL
-    // FIXME test >>>
     17'b0100000_101_0110011: o_num <= i_num1s >>> shamt_rs; // SRA
     17'b0000000_110_0110011: o_num <= i_num1 | i_num2; // OR
     17'b0000000_111_0110011: o_num <= i_num1 & i_num2; // AND
