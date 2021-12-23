@@ -2,7 +2,7 @@
 module core_instr_bus_adapter(
     input  logic clk, rst_n,
     input  logic [31:0] i_boot_addr,
-    input  logic i_stall, i_bus_disable,
+    input  logic i_stall, i_bus_disable, // 由于新设计总线分离，因此IF部分不需要考虑此类内容
     input  logic i_ex_jmp, i_id_jmp,
     input  logic [31:0] i_ex_target, i_id_target, 
     output logic [31:0] o_pc, o_instr,
