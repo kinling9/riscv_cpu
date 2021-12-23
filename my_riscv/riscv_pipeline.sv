@@ -91,8 +91,8 @@ module riscv_mem(
   .i_we(i_weM),
   .i_funct3(i_funct3M),
   .i_addr(i_addrM),
-  .i_wdata(i_wdataM),
-  .o_raddr(o_raddrM),
+  .i_wdata(mem_addrM),//*
+  .o_rdata(o_rdataM),
   .o_bus_stall(o_bus_stallM),
   .mem_master(mem_master)//*
 );

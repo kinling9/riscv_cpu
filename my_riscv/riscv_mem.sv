@@ -6,7 +6,7 @@ module riscv_mem(
   input logic [2:0] i_funct3,
   input logic [31:0] i_addr,
   input logic [31:0] i_wdata,
-  output logic [31:0] o_raddr,
+  output logic [31:0] o_rdata,
   output logic o_bus_stall,
   dualport_bus.master mem_master 
 );
