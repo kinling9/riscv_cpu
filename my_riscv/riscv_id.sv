@@ -28,7 +28,7 @@ module riscv_id(
   // SB SH SW op write data to memory from register
 
   output logic [4:0] o_dst_reg_addr
-  // destination for alu's output
+  // destination for alu and load's output
 
 );
 

@@ -20,7 +20,8 @@ module riscv_alu(
 
 
 
-parameter OP_JAL    = 7'b1101111;
+// parameter OP_JAL    = 7'b1101111;
+// jal will be handled in ID stage
 parameter OP_JALR   = 7'b1100111;
 parameter OP_BRANCH = 7'b1100011;
 parameter OP_BEQ    = 3'b000;
@@ -46,10 +47,10 @@ assign i_imm_nums    = i_imm_num;
 // for JAL and BRANCH OPs, only handle o_if_branch and o_pc output
 always_comb begin : PC_handle
   case(i_opcode)
-    OP_JAL: begin
-      o_if_branch <= 1'b1; //always jump for JAL 
-      o_pc        <= i_imm_num; 
-    end
+    // OP_JAL: begin
+    //   o_if_branch <= 1'b1; //always jump for JAL 
+    //   o_pc        <= i_imm_num; 
+    // end
     OP_JALR: begin
       o_if_branch <= 1'b1;
       o_pc        <= num1_plus_imm;
