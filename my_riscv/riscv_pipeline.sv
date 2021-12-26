@@ -7,7 +7,35 @@ module riscv_pipeline(
 );
 // 该模块用来实现流水线寄存器，并对于不同的基础组件进行连接
 
-logic [31:0] mem_addrE; 
+logic stallFD,stallDE,stallEM,stallMB;
+logic flushFD,flushDE,flushEM,flushMB;
+logic stallF;
+logic [31:0] instrF,instrD;
+logic [31:0] pcF,pcD,pcE;
+logic [6:0] opcodeD,opcodeE;
+logic [6:0] funct7D,funct7E;
+logic [2:0] funct3D,funct3E,funct3M;
+logic [31:0] imm_numD,imm_numE;
+logic src1_reg_enD;
+logic src2_reg_enD;
+logic [31:0] src1_reg_addrD;
+logic [31:0] src2_reg_addrD;
+logic jalD,jalE;
+logic alures2regD,alures2regE,alures2regM,alures2regB;
+logic memory2regD,memory2regE,memory2regM,memory2regB;
+logic mem_writeD,mem_writeE,mem_writeM;
+logic [31:0] dst_reg_addrD,dst_reg_addrE,dst_reg_addrM,dst_reg_addrB;
+logic [31:0] rdata1D,num1E;
+logic [31:0] rdata2D,num2E,num2M;
+logic [31:0] jal_addrD,jal_addrE;
+logic [31:0] mem_addrE,mem_addrM;
+logic if_branchE,ex_branchM;
+logic [31:0] numE,numM,numB;
+logic [31:0] ex_targetE,ex_targetM;
+logic [31:0] rdataM,rdataB;
+logic bus_stallM;
+logic reg_weB;
+logic [31:0] reg_wdataB;
 
 riscv_if IF_if(
   .clk(clk),//*
@@ -99,7 +127,7 @@ flopenrc #(32) dst_reg_addrEM(clk,rst_n,stallEM,flushEM,dst_reg_addrE,dst_reg_ad
 flopenrc #(1) mem_writeEM(clk,rst_n,stallEM,flushEM,mem_writeE,mem_writeM);
 flopenrc #(32) num2EM(clk,rst_n,stallEM,flushEM,num2E,num2M);
 
-module riscv_mem(
+riscv_mem MEM_mem(
   .clk(clk),//*
   .rst_n(rst_n),//*
   .i_re(memory2regM),//*
@@ -120,6 +148,30 @@ flopenrc #(32) dst_reg_addrMB(clk,rst_n,stallMB,flushMB,dst_reg_addrM,dst_reg_ad
 
 assign reg_weB = (alures2regB | memory2regB);//*
 assign reg_wdataB = memory2regB ? rdataB : numB;//*
+
+riscv_hazard pipeline_hazard(
+  .clk(clk),
+  .rst_n(rst_n),
+  .i_src1_reg_en(src1_reg_enD),
+  .i_src2_reg_en(src2_reg_enD),
+  .i_src1_reg_addr(src1_reg_addrD),
+  .i_src2_reg_addr(src2_reg_addrD),
+  .i_dst_reg_addrE(dst_reg_addrE),
+  .i_dst_reg_addrM(dst_reg_addrM),
+  .i_dst_reg_addrB(dst_reg_addrB),
+  .i_jalE(jalD),
+  .i_ex_branchM(ex_branchM),
+  .i_bus_stallM(bus_stallM),
+  .o_stallFD(stallFD),
+  .o_flushFD(flushFD),
+  .o_stallDE(stallDE),
+  .o_flushDE(flushDE),
+  .o_stallEM(stallEM),
+  .o_flushEM(flushEM),
+  .o_stallMB(stallMB),
+  .o_flushMB(flushMB),
+  .o_stallF(stallF)
+);
 
 
 endmodule
