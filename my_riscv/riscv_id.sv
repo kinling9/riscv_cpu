@@ -59,7 +59,7 @@ assign o_memory2reg = (o_opcode == OP_LOAD);
 assign o_mem_write = (o_opcode == OP_STORE);
 assign o_alures2reg = (o_opcode == OP_LUI || o_opcode == OP_AUIPC ||
                        o_opcode == OP_JAL || o_opcode == OP_JALR ||
-                       o_opcode == OP_ALI || o_opcode == OP_ALR )
+                       o_opcode == OP_ALI || o_opcode == OP_ALR );
 // load op doesn't use alu
 // store and branch op don't have an rd
 
@@ -70,7 +70,7 @@ always_comb begin
     OP_JAL : instr_type <= J_TYPE;
     OP_JALR : instr_type <= I_TYPE;
     OP_BRANCH : instr_type <= B_TYPE;
-    OP_LOAD : instr_type <= L_TYPE;
+    OP_LOAD : instr_type <= I_TYPE;
     OP_STORE : instr_type <= S_TYPE;
     OP_ALI : instr_type <= I_TYPE;
     OP_ALR : instr_type <= R_TYPE;

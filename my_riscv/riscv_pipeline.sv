@@ -1,3 +1,14 @@
+`include "riscv_if.sv"
+`include "riscv_id.sv"
+`include "riscv_reg.sv"
+`include "riscv_alu.sv"
+`include "riscv_mem.sv"
+`include "riscv_hazard.sv"
+`include "flopenrc.sv"
+`ifndef PORT_INCLUDE
+`define PORT_INCLUDE
+`include "dualport_bus.sv"
+`endif
 module riscv_pipeline(
   input logic clk,
   input logic rst_n,
@@ -18,13 +29,13 @@ logic [2:0] funct3D,funct3E,funct3M;
 logic [31:0] imm_numD,imm_numE;
 logic src1_reg_enD;
 logic src2_reg_enD;
-logic [31:0] src1_reg_addrD;
-logic [31:0] src2_reg_addrD;
+logic [4:0] src1_reg_addrD;
+logic [4:0] src2_reg_addrD;
 logic jalD,jalE;
 logic alures2regD,alures2regE,alures2regM,alures2regB;
 logic memory2regD,memory2regE,memory2regM,memory2regB;
 logic mem_writeD,mem_writeE,mem_writeM;
-logic [31:0] dst_reg_addrD,dst_reg_addrE,dst_reg_addrM,dst_reg_addrB;
+logic [4:0] dst_reg_addrD,dst_reg_addrE,dst_reg_addrM,dst_reg_addrB;
 logic [31:0] rdata1D,num1E;
 logic [31:0] rdata2D,num2E,num2M;
 logic [31:0] jal_addrD,jal_addrE;
@@ -96,7 +107,7 @@ flopenrc #(32) num2DE(clk,rst_n,stallDE,flushDE,rdata2D,num2E);
 flopenrc #(32) pcDE(clk,rst_n,stallDE,flushDE,pcD,pcE);
 flopenrc #(1) alures2regDE(clk,rst_n,stallDE,flushDE,alures2regD,alures2regE);
 flopenrc #(1) memory2regDE(clk,rst_n,stallDE,flushDE,memory2regD,memory2regE);
-flopenrc #(32) dst_reg_addrDE(clk,rst_n,stallDE,flushDE,dst_reg_addrD,dst_reg_addrE);
+flopenrc #(5) dst_reg_addrDE(clk,rst_n,stallDE,flushDE,dst_reg_addrD,dst_reg_addrE);
 flopenrc #(1) mem_writeDE(clk,rst_n,stallDE,flushDE,mem_writeD,mem_writeE);
 flopenrc #(1) jalDE(clk,rst_n,stallDE,flushDE,jalD,jalE);
 flopenrc #(32) jal_addrDE(clk,rst_n,stallDE,flushDE,jal_addrD,jal_addrE);
@@ -123,7 +134,7 @@ flopenrc #(32) pc_targetEM(clk,rst_n,stallEM,flushEM,ex_targetE,ex_targetM);
 flopenrc #(1) alures2regEM(clk,rst_n,stallEM,flushEM,alures2regE,alures2regM);
 flopenrc #(1) memory2regEM(clk,rst_n,stallEM,flushEM,memory2regE,memory2regM);
 flopenrc #(32) alu_numEM(clk,rst_n,stallEM,flushEM,numE,numM);
-flopenrc #(32) dst_reg_addrEM(clk,rst_n,stallEM,flushEM,dst_reg_addrE,dst_reg_addrM);
+flopenrc #(5) dst_reg_addrEM(clk,rst_n,stallEM,flushEM,dst_reg_addrE,dst_reg_addrM);
 flopenrc #(1) mem_writeEM(clk,rst_n,stallEM,flushEM,mem_writeE,mem_writeM);
 flopenrc #(32) num2EM(clk,rst_n,stallEM,flushEM,num2E,num2M);
 
@@ -144,7 +155,7 @@ flopenrc #(1) alures2regMB(clk,rst_n,stallMB,flushMB,alures2regM,alures2regB);
 flopenrc #(1) memory2regMB(clk,rst_n,stallMB,flushMB,memory2regM,memory2regB);
 flopenrc #(32) mem_rdataMB(clk,rst_n,stallMB,flushMB,rdataM,rdataB);
 flopenrc #(32) alu_numMB(clk,rst_n,stallMB,flushMB,numM,numB);
-flopenrc #(32) dst_reg_addrMB(clk,rst_n,stallMB,flushMB,dst_reg_addrM,dst_reg_addrB);
+flopenrc #(5) dst_reg_addrMB(clk,rst_n,stallMB,flushMB,dst_reg_addrM,dst_reg_addrB);
 
 assign reg_weB = (alures2regB | memory2regB);//*
 assign reg_wdataB = memory2regB ? rdataB : numB;//*
@@ -159,7 +170,7 @@ riscv_hazard pipeline_hazard(
   .i_dst_reg_addrE(dst_reg_addrE),
   .i_dst_reg_addrM(dst_reg_addrM),
   .i_dst_reg_addrB(dst_reg_addrB),
-  .i_jalE(jalD),
+  .i_jalD(jalD),
   .i_ex_branchM(ex_branchM),
   .i_bus_stallM(bus_stallM),
   .o_stallFD(stallFD),

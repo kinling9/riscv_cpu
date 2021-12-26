@@ -1,3 +1,4 @@
+`include "ram_32x32.sv"
 module riscv_reg(
   input logic clk,
   input logic rst_n,
@@ -33,7 +34,7 @@ always_ff @(posedge clk or negedge rst_n) begin
     ov_rdata1 <= 0;
     override1 <= 1;
   end else begin
-    if (~i_re1 || i_raddr1 = 5'b0000) begin
+    if (~i_re1 || i_raddr1 == 5'b0000) begin
       ov_rdata1 <= 0;
       override1 <= 1;
     end else begin
@@ -47,7 +48,7 @@ always_ff @(posedge clk or negedge rst_n) begin
     ov_rdata2 <= 0;
     override2 <= 1;
   end else begin
-    if (~i_re1 || i_raddr1 = 5'b0000) begin
+    if (~i_re1 || i_raddr1 == 5'b0000) begin
       ov_rdata2 <= 0;
       override2 <= 1;
     end else begin

@@ -1,4 +1,4 @@
-interface dualport_bus();
+interface dualport_bus;
   // read interface
   logic  rd_req, rd_gnt;
   logic  [3:0]  rd_be;
@@ -24,4 +24,4 @@ interface dualport_bus();
   );
   // used by testbench, provide the data for the core
 
-endinterface
+endinterface : dualport_bus

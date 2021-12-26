@@ -1,3 +1,7 @@
+`ifndef PORT_INCLUDE
+`define PORT_INCLUDE
+`include "dualport_bus.sv"
+`endif
 module riscv_if(
   input logic clk,
   input logic rst_n,

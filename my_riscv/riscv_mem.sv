@@ -1,3 +1,7 @@
+`ifndef PORT_INCLUDE
+`define PORT_INCLUDE
+`include "dualport_bus.sv"
+`endif
 module riscv_mem(
   input logic clk,
   input logic rst_n,
@@ -15,6 +19,8 @@ logic [31:0] addr_bus;
 logic [1:0] addr_lsb;
 // get bus and the lsb of address
 
+logic [31:0] rdata;
+
 logic [3:0] byte_enable;
 logic [31:0] wdata;
 // byte enable and possible write data
@@ -23,21 +29,21 @@ logic re_latch;
 logic o_bus_stall_latch;
 logic [31:0] rdata_latch;
 
-assign o_bus_stall = (bus_master.rd_req & ~bus_master.rd_gnt) | (bus_master.wr_req & ~bus_master.wr_gnt);
+assign o_bus_stall = (mem_master.rd_req & ~mem_master.rd_gnt) | (mem_master.wr_req & ~mem_master.wr_gnt);
 // 总线无响应信号，其他组件在接收到该信号后需要停止数据的传递过程
 
 assign addr_bus = {i_addr[31:2], 2'b00};
 assign addr_lsb = i_addr[1:0];
 
-assign bus_master.rd_req = i_re;
-assign bus_master.rd_be = i_re ? byte_enable : 4'h0;
-assign bus_master.rd_addr = i_re ? addr_bus : 31'b0;
-assign rdata = bus_master.rd_data;
+assign mem_master.rd_req = i_re;
+assign mem_master.rd_be = i_re ? byte_enable : 4'h0;
+assign mem_master.rd_addr = i_re ? addr_bus : 31'b0;
+assign rdata = mem_master.rd_data;
 
-assign bus_master.wr_req = i_we;
-assign bus_master.wr_be = i_we ? byte_enable : 4'h0;
-assign bus_master.wr_addr = i_we ? addr_bus : 31'b0;
-assign bus_master.wr_data = i_we ? wdata : 31'b0;
+assign mem_master.wr_req = i_we;
+assign mem_master.wr_be = i_we ? byte_enable : 4'h0;
+assign mem_master.wr_addr = i_we ? addr_bus : 31'b0;
+assign mem_master.wr_data = i_we ? wdata : 31'b0;
 
 always_comb begin
   casex(i_funct3)
@@ -114,35 +120,35 @@ end
 
 always_ff @(posedge clk or negedge rst_n) begin 
   if (~rst_n) begin
-    i_re_latch  <= 1'b0;
+    re_latch  <= 1'b0;
     o_bus_stall_latch <= 1'b0;
     rdata_latch <= 0;
   end else begin
-    i_re_latch  <= i_re;
+    re_latch  <= i_re;
     o_bus_stall_latch <= o_bus_stall;
     rdata_latch <= o_rdata;
   end
 end
 
 always_comb begin
-  if(i_re_latch) begin
+  if(re_latch) begin
     if(~o_bus_stall_latch)
-      case(rd_funct3)
-        3'b000: if (rd_addr_lsb==2'b00) o_rdata <= {{24{rdata[7]}}, rdata[7:0]};
-                else if(rd_addr_lsb==2'b01) o_rdata <= {{24{rdata[15]}}, rdata[15:8]};
-                else if(rd_addr_lsb==2'b10) o_rdata <= {{24{rdata[23]}}, rdata[23:16]};
+      case(i_funct3)
+        3'b000: if (addr_lsb==2'b00) o_rdata <= {{24{rdata[7]}}, rdata[7:0]};
+                else if(addr_lsb==2'b01) o_rdata <= {{24{rdata[15]}}, rdata[15:8]};
+                else if(addr_lsb==2'b10) o_rdata <= {{24{rdata[23]}}, rdata[23:16]};
                 else o_rdata <= {{24{rdata[31]}}, rdata[31:24]};
-        3'b100: if (rd_addr_lsb==2'b00) o_rdata <= {24'b0, rdata[7:0]};
-                else if(rd_addr_lsb==2'b01) o_rdata <= {24'b0, rdata[15: 8]};
-                else if(rd_addr_lsb==2'b10) o_rdata <= {24'b0, rdata[23:16]};
+        3'b100: if (addr_lsb==2'b00) o_rdata <= {24'b0, rdata[7:0]};
+                else if(addr_lsb==2'b01) o_rdata <= {24'b0, rdata[15: 8]};
+                else if(addr_lsb==2'b10) o_rdata <= {24'b0, rdata[23:16]};
                 else o_rdata <= {24'b0, rdata[31:24]};
-        3'b001: if (rd_addr_lsb==2'b00) o_rdata <= {{16{rdata[15]}}, rdata[15:0]};
-                else if(rd_addr_lsb==2'b10) o_rdata <= {{16{rdata[31]}}, rdata[31:16]};
+        3'b001: if (addr_lsb==2'b00) o_rdata <= {{16{rdata[15]}}, rdata[15:0]};
+                else if(addr_lsb==2'b10) o_rdata <= {{16{rdata[31]}}, rdata[31:16]};
                 else o_rdata <= 0;
-        3'b101: if (rd_addr_lsb==2'b00) o_rdata <= {16'b0, rdata[15:0]};
-                else if(rd_addr_lsb==2'b10) o_rdata <= {16'b0, rdata[31:16]};
+        3'b101: if (addr_lsb==2'b00) o_rdata <= {16'b0, rdata[15:0]};
+                else if(addr_lsb==2'b10) o_rdata <= {16'b0, rdata[31:16]};
                 else o_rdata <= 0;
-        3'b010: if(rd_addr_lsb==2'b00) o_rdata <= rdata;
+        3'b010: if(addr_lsb==2'b00) o_rdata <= rdata;
                 else o_rdata <= 0;
         default: o_rdata <= 0;
       endcase
