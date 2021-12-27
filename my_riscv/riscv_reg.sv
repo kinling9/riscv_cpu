@@ -29,7 +29,7 @@ logic [31:0] or_rdata2;
 assign o_rdata1 = override1 ? ov_rdata1 : or_rdata1;
 assign o_rdata2 = override2 ? ov_rdata2 : or_rdata2;
 
-always_ff @(posedge clk or negedge rst_n) begin
+always_comb begin
   if (~rst_n) begin
     ov_rdata1 <= 0;
     override1 <= 1;
@@ -43,12 +43,12 @@ always_ff @(posedge clk or negedge rst_n) begin
   end
 end
 
-always_ff @(posedge clk or negedge rst_n) begin
+always_comb begin
   if (~rst_n) begin
     ov_rdata2 <= 0;
     override2 <= 1;
   end else begin
-    if (~i_re1 || i_raddr1 == 5'b0000) begin
+    if (~i_re2 || i_raddr2 == 5'b0000) begin
       ov_rdata2 <= 0;
       override2 <= 1;
     end else begin

@@ -44,28 +44,26 @@ always_comb begin
     npc = i_ex_target;
   end else if (i_id_jmp) begin
     npc = i_id_target;
-  end else if (bus_busy) begin
+  end else if (bus_busy || ~i_stall) begin
     npc = o_pc;
   end else begin
     npc = o_pc + 4;
   end
 end
 
-always_ff @(posedge clk or negedge rst_n) begin
+always_comb begin
   if (~rst_n) begin
-    bus_busy <= 1'b0;
-    stall_n <= 1'b0;
-    instr_hold <= 32'b0;
+    bus_busy = 1'b0;
+    instr_hold = 32'b0;
   end else begin
-    bus_busy <= (instr_master.rd_req & ~instr_master.rd_gnt);
-    stall_n <= ~i_stall;
-    instr_hold <= o_instr;
+    bus_busy = (instr_master.rd_req & ~instr_master.rd_gnt);
+    instr_hold = o_instr;
   end
 end
 // check the bus is busy or not
 
 always_ff @(posedge clk or negedge rst_n) begin
-  if (stall_n) begin
+  if (~i_stall) begin
     o_instr <= instr_hold;
   end else if (bus_busy) begin
     o_instr <= 32'b0;

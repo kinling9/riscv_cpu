@@ -7,13 +7,51 @@ module instr_rom(
   input logic rst_n,
   dualport_bus.slave instr_slave
 );
-localparam  INSTR_CNT = 30'd3;
+localparam  INSTR_CNT = 30'd22;
 wire [0:INSTR_CNT-1] [31:0] instr_rom_cell = {
-  32'h00708093,   // 0x00000000
-  // addi x1,x1,10
-  32'h00710113,   // 0x00000004
-  // addi x2,x2,10
-  32'h002081b3    // 0x00000008
+  32'h00708093,   
+  // addi x1,x1,7
+  32'h00710113,   
+  // addi x2,x2,7
+  32'h00110863,
+  // beq x1,x2,16
+  32'h002081b3,   
+  // add  x1,x2,x3
+  32'h00720213,  
+  // addi x4,x4,7
+  32'h00728293,   
+  // addi x5,x5,7
+  32'h002081b3,   
+  // add  x1,x2,x3
+  32'h00708093,   
+  // addi x1,x1,7
+  32'h00710113,   
+  // addi x2,x2,7
+  32'h002081b3,   
+  // add  x1,x2,x3
+  32'h00708093,   
+  // addi x1,x1,7
+  32'h00000013,   
+  // addi x0,x0,0 NOP
+  32'h00000013,
+  // addi x0,x0,0 NOP
+  32'h00710113,   
+  // addi x2,x2,7
+  32'h002081b3,   
+  // add  x1,x2,x3
+  32'h00708093,  
+  // addi x1,x1,7
+  32'h00710113,   
+  // addi x2,x2,7
+  32'h002081b3,   
+  // add  x1,x2,x3
+  32'hff9ff06f,   
+  // jal pc -8
+  32'h00708093,   
+  // addi x1,x1,7
+  32'h00710113,   
+  // addi x2,x2,7
+  32'h002081b3    
   // add  x1,x2,x3
 };
 
@@ -34,3 +72,28 @@ always_ff @ (posedge clk or negedge rst_n) begin
 end
 
 endmodule
+
+  // 32'h00708093,   // 0x0000000c
+  // // addi x1,x1,7
+  // 32'h00000013,   
+  // // addi x0,x0,0 NOP
+  // 32'h00000013,
+  // // addi x0,x0,0 NOP
+  // 32'h00710113,   
+  // // addi x2,x2,7
+  // 32'h002081b3,   
+  // // add  x1,x2,x3
+  // 32'h00708093,  
+  // // addi x1,x1,7
+  // 32'h00710113,   
+  // // addi x2,x2,7
+  // 32'h002081b3,   
+  // // add  x1,x2,x3
+  // 32'hff9ff06f,   
+  // // jal pc-4x4
+  // 32'h00708093,   
+  // // addi x1,x1,7
+  // 32'h00710113,   
+  // // addi x2,x2,7
+  // 32'h002081b3    
+  // // add  x1,x2,x3
