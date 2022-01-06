@@ -1,4 +1,4 @@
-module flopenrc 
+module floprc 
 #(parameter WIDTH = 8) (
 	input logic clk,
   input logic rst_n,
