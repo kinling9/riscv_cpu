@@ -45,20 +45,26 @@ module riscv_tb_top;
     ctrl_vif.clk = 1'b0;
     ctrl_vif.i_boot_addr = 32'h0000_0000;
     ctrl_vif.rst_n = 1'b1;
+    instr_vif.rd_data = 32'h0000_0000;
   end
+
+  assign instr_vif.rd_gnt = instr_vif.rd_req;
+  assign instr_vif.wr_gnt = instr_vif.wr_req;
+  assign mem_vif.rd_gnt = mem_vif.rd_req;
+  assign mem_vif.wr_gnt = mem_vif.wr_req;
 
 	initial begin
 		ctrl_vif.clk <= 1'b1;
 	end
 
   initial begin
-    #20;
+    #10;
     ctrl_vif.rst_n = 1'b0;
-    #20;
+    #10;
     ctrl_vif.rst_n = 1'b1;
   end
 
 	//Clock generation
 	always
-		#10 ctrl_vif.clk = ~ctrl_vif.clk;
+		#5 ctrl_vif.clk = ~ctrl_vif.clk;
 endmodule

@@ -31,7 +31,7 @@ class riscv_monitor_before extends uvm_monitor;
 		rv_tx = riscv_transaction::type_id::create
 			(.name("rv_tx"), .contxt(get_full_name()));
 
-    #50
+    #30;
 		forever begin
 			@(posedge ctrl_vif.clk)
 			begin
@@ -54,6 +54,7 @@ class riscv_monitor_after extends uvm_monitor;
   virtual dualport_bus mem_vif;
 
 	riscv_transaction rv_tx;
+  logic [31:0] data_ram_cell [0:31];
 	
 	//For coverage
 	riscv_transaction rv_tx_cg;
@@ -88,7 +89,7 @@ class riscv_monitor_after extends uvm_monitor;
 		rv_tx = riscv_transaction::type_id::create
 			(.name("rv_tx"), .contxt(get_full_name()));
 
-    #50
+    #30;
 		forever begin
 			@(posedge ctrl_vif.clk)
 			begin
@@ -96,7 +97,7 @@ class riscv_monitor_after extends uvm_monitor;
 				rv_tx.inb = 2'b10;
 				rv_tx.out = 3'b000;
 
-        
+
 		    //Predict the result
         predictor();
         rv_tx_cg = rv_tx;
