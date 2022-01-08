@@ -34,7 +34,7 @@ class riscv_driver extends uvm_driver#(riscv_transaction);
       @(negedge ctrl_vif.clk) begin
         seq_item_port.get_next_item(rv_tx);
         //`uvm_info("rv_driver", rv_tx.sprint(), UVM_LOW);
-        `uvm_info("rv_driver", $sformatf("%d%d%d%d%d%d%d",instr_vif.rd_data[6],instr_vif.rd_data[5],instr_vif.rd_data[4],instr_vif.rd_data[3],instr_vif.rd_data[2],instr_vif.rd_data[1],instr_vif.rd_data[0]), UVM_LOW);
+        //`uvm_info("rv_driver", $sformatf("%d%d%d%d%d%d%d",instr_vif.rd_data[6],instr_vif.rd_data[5],instr_vif.rd_data[4],instr_vif.rd_data[3],instr_vif.rd_data[2],instr_vif.rd_data[1],instr_vif.rd_data[0]), UVM_LOW);
 
         case (rv_tx.instr)
           AND: begin
@@ -78,12 +78,12 @@ class riscv_driver extends uvm_driver#(riscv_transaction);
             `uvm_info("rv_driver", $sformatf("load from address %d + %d to %d", rv_tx.rs1,rv_tx.imm,rv_tx.rd), UVM_LOW);
           end
           BEQ: begin
-            instr_vif.rd_data = {rv_tx.imm_jal[12], rv_tx.imm_jal[10:5], rv_tx.rs2, rv_tx.rs1, 3'b000, rv_tx.imm_jal[4:1], rv_tx.imm_jal[11], 7'b1100011};
-            `uvm_info("rv_driver", $sformatf("check equ of %d and %d and jump to %d", rv_tx.rs1,rv_tx.rs2,rv_tx.imm_jal[12:1]), UVM_LOW);
+            instr_vif.rd_data = {rv_tx.imm_jal[12], rv_tx.imm[10:5], rv_tx.rs2, rv_tx.rs1, 3'b000, rv_tx.imm[4:1], rv_tx.imm[11], 7'b1100011};
+            `uvm_info("rv_driver", $sformatf("check equ of %d and %d and jump to %d", rv_tx.rs1,rv_tx.rs2, {rv_tx.imm_jal[12],rv_tx.imm[11:1]}), UVM_LOW);
           end
           JAL: begin
             instr_vif.rd_data = {rv_tx.imm_jal[20], rv_tx.imm_jal[10:1], rv_tx.imm_jal[11], rv_tx.imm_jal[19:12], rv_tx.rd, 7'b1101111};
-            `uvm_info("rv_driver", $sformatf("jump to %d", rv_tx.imm_jal[20:1]), UVM_LOW);
+            `uvm_info("rv_driver", $sformatf("jump to %d", {rv_tx.imm_jal[20:12],rv_tx.imm[11:1]}), UVM_LOW);
           end
           default: begin
             instr_vif.rd_data = 0;
@@ -92,7 +92,7 @@ class riscv_driver extends uvm_driver#(riscv_transaction);
         
         // `uvm_info("rv_driver", $sformatf("%d%d%d%d%d%d%d",instr_vif.rd_data[6],instr_vif.rd_data[5],instr_vif.rd_data[4],instr_vif.rd_data[3],instr_vif.rd_data[2],instr_vif.rd_data[1],instr_vif.rd_data[0]), UVM_LOW);
 
-        `uvm_info("rv_driver", $sformatf("instr:%s, rs2:%x, rs1:%x, rd:%x, imm:%x, imm_jal:%x, instr_vif.rd_data:%x", rv_tx.instr.name(), rv_tx.rs2, rv_tx.rs1, rv_tx.rd, rv_tx.imm, rv_tx.imm_jal, instr_vif.rd_data), UVM_LOW);
+        //`uvm_info("rv_driver", $sformatf("instr:%s, rs2:%x, rs1:%x, rd:%x, imm:%x, imm_jal:%x, instr_vif.rd_data:%x", rv_tx.instr.name(), rv_tx.rs2, rv_tx.rs1, rv_tx.rd, rv_tx.imm, rv_tx.imm_jal, instr_vif.rd_data), UVM_LOW);
 
         mem_vif.rd_data = rv_tx.mem_rd_data;
 

@@ -46,7 +46,7 @@ class riscv_monitor_before extends uvm_monitor;
         rv_tx.mem_wr_data = mem_vif.wr_data;
         //Send the transaction to the analysis port
         //`uvm_info("rv_mon_before", rv_tx.sprint(), UVM_LOW);
-        `uvm_info("rv_mon_before ROM", $sformatf("pc: %x, ", rv_tx.pc), UVM_LOW);
+        `uvm_info("rv_mon_before ROM", $sformatf("pc: %d, ", rv_tx.pc), UVM_LOW);
         `uvm_info("rv_mon_before read RAM", $sformatf("mem_rd_req: %x, mem_rd_addr: %x", rv_tx.mem_rd_req, rv_tx.mem_rd_addr), UVM_LOW);
         `uvm_info("rv_mon_before write RAM", $sformatf("mem_wr_req: %x, mem_wr_addr: %x, mem_wr_data: %x,", rv_tx.mem_wr_req, rv_tx.mem_wr_addr, rv_tx.mem_wr_data), UVM_LOW);
         mon_ap_before.write(rv_tx);
@@ -67,7 +67,7 @@ class riscv_monitor_after extends uvm_monitor;
   riscv_transaction rv_tx;
 
  
-  logic [31:0] data_ram_cell [0:31];
+  logic [31:0] reg_ram [0:31];
   
   //For coverage
   riscv_transaction rv_tx_cg;
@@ -116,6 +116,11 @@ class riscv_monitor_after extends uvm_monitor;
         rv_tx.rd = 0;
         rv_tx.imm = 0;
         rv_tx.imm_jal = 0;
+        rv_tx.mem_wr_addr = 0;
+        rv_tx.mem_rd_addr = 0;
+        rv_tx.mem_wr_req = 0;
+        rv_tx.mem_rd_req = 0;
+        rv_tx.mem_wr_data = 0;
 
 				case (instr_vif.rd_data[6:0])
           7'b0110011 : begin 
@@ -200,8 +205,12 @@ class riscv_monitor_after extends uvm_monitor;
         endcase
         //`uvm_info("rv_mon_after", rv_tx.sprint(), UVM_LOW);
         
-        `uvm_info("rv_mon_after", $sformatf("instr:%s, rs2:%x, rs1:%x, rd:%x, imm:%x, imm_jal:%x, instr_vif.rd_data:%x", rv_tx.instr.name(), rv_tx.rs2, rv_tx.rs1, rv_tx.rd, rv_tx.imm, {rv_tx.imm_jal, rv_tx.imm[11:1]}, instr_vif.rd_data), UVM_LOW);
+        `uvm_info("rv_mon_after", $sformatf("instr:%s, rs2:%d, rs1:%d, rd:%d, imm:%x, imm_jal:%x, instr_vif.rd_data:%x", rv_tx.instr.name(), rv_tx.rs2, rv_tx.rs1, rv_tx.rd, rv_tx.imm, {rv_tx.imm_jal, rv_tx.imm[11:1]}, instr_vif.rd_data), UVM_LOW);
 
+
+        // Excecute the instruction
+
+        execute();
 
         //Predict the result
         predictor();
@@ -218,7 +227,53 @@ class riscv_monitor_after extends uvm_monitor;
   endtask: run_phase
 
   virtual function void execute();
-    rv_tx.out = rv_tx.ina + rv_tx.inb;
+    case (rv_tx.instr)
+      AND: begin 
+        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] & reg_ram[rv_tx.rs2];
+      end
+      OR: begin 
+        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] | reg_ram[rv_tx.rs2];
+      end
+      XOR: begin 
+        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] ^ reg_ram[rv_tx.rs2];
+      end
+      ADD: begin 
+        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] + reg_ram[rv_tx.rs2];
+      end
+      SUB: begin 
+        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] - reg_ram[rv_tx.rs2];
+      end
+      ANDI: begin 
+        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] & {rv_tx.imm_jal, rv_tx.imm};
+      end
+      ORI: begin 
+        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] | {rv_tx.imm_jal, rv_tx.imm};
+      end
+      XORI: begin 
+        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] ^ {rv_tx.imm_jal, rv_tx.imm};
+      end
+      SW: begin
+        rv_tx.mem_wr_data = reg_ram[rv_tx.rs2];
+        rv_tx.mem_wr_addr = reg_ram[rv_tx.rs1] + {rv_tx.imm_jal, rv_tx.imm};
+        rv_tx.mem_wr_req = 1;
+      end
+      LW: begin
+        reg_ram[rv_tx.rd] = mem_vif.rd_data;
+        rv_tx.mem_rd_addr = reg_ram[rv_tx.rs1] + {rv_tx.imm_jal, rv_tx.imm};
+        rv_tx.mem_rd_req = 1;
+      end
+      BEQ: begin
+        if (reg_ram[rv_tx.rs1] == reg_ram[rv_tx.rs2]) begin
+          rv_tx.pc += {rv_tx.imm_jal, rv_tx.imm};
+        end
+      end
+      JAL: begin
+        rv_tx.pc = {rv_tx.imm_jal, rv_tx.imm};
+      end
+      default: begin
+        `uvm_info("rv_mon_after", "UNKNOWN_INSTR", UVM_LOW);
+      end
+    endcase
   endfunction: execute
 
   virtual function void predictor();
