@@ -45,7 +45,7 @@ class riscv_scoreboard extends uvm_scoreboard;
 	endtask: run
 
 	virtual function void compare();
-		`uvm_info("compare", {"Test: compare OK!"}, UVM_LOW);
+		// `uvm_info("compare", {"Test: compare OK!"}, UVM_LOW);
 		// if(transaction_before.out == transaction_after.out) begin
 		// 	`uvm_info("compare", {"Test: OK!"}, UVM_LOW);
 		// end else begin

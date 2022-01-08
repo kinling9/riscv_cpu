@@ -58,7 +58,7 @@ class riscv_sequence extends uvm_sequence#(riscv_transaction);
   task body();
     riscv_transaction rv_tx;
     
-    repeat(5) begin
+    repeat(20) begin
       rv_tx = riscv_transaction::type_id::create(.name("rv_tx"), .contxt(get_full_name()));
 
       start_item(rv_tx);

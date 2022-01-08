@@ -46,7 +46,7 @@ class riscv_monitor_before extends uvm_monitor;
         rv_tx.mem_wr_data = mem_vif.wr_data;
         //Send the transaction to the analysis port
         //`uvm_info("rv_mon_before", rv_tx.sprint(), UVM_LOW);
-        `uvm_info("rv_mon_before ROM", $sformatf("pc: %d, ", rv_tx.pc), UVM_LOW);
+        `uvm_info("rv_mon_before ROM", $sformatf("pc: %d, ", $signed(rv_tx.pc)), UVM_LOW);
         `uvm_info("rv_mon_before read RAM", $sformatf("mem_rd_req: %x, mem_rd_addr: %x", rv_tx.mem_rd_req, rv_tx.mem_rd_addr), UVM_LOW);
         `uvm_info("rv_mon_before write RAM", $sformatf("mem_wr_req: %x, mem_wr_addr: %x, mem_wr_data: %x,", rv_tx.mem_wr_req, rv_tx.mem_wr_addr, rv_tx.mem_wr_data), UVM_LOW);
         mon_ap_before.write(rv_tx);
@@ -203,9 +203,9 @@ class riscv_monitor_after extends uvm_monitor;
             rv_tx.imm_jal[31:21] = {12{instr_vif.rd_data[31]}};
           end
         endcase
-        //`uvm_info("rv_mon_after", rv_tx.sprint(), UVM_LOW);
+        // `uvm_info("rv_mon_after", rv_tx.sprint(), UVM_LOW);
         
-        `uvm_info("rv_mon_after", $sformatf("instr:%s, rs2:%d, rs1:%d, rd:%d, imm:%x, imm_jal:%x, instr_vif.rd_data:%x", rv_tx.instr.name(), rv_tx.rs2, rv_tx.rs1, rv_tx.rd, rv_tx.imm, {rv_tx.imm_jal, rv_tx.imm[11:1]}, instr_vif.rd_data), UVM_LOW);
+        // `uvm_info("rv_mon_after", $sformatf("instr:%s, rs2:%d, rs1:%d, rd:%d, imm:%x, imm_jal:%x, instr_vif.rd_data:%x", rv_tx.instr.name(), rv_tx.rs2, rv_tx.rs1, rv_tx.rd, rv_tx.imm, {rv_tx.imm_jal, rv_tx.imm[11:1]}, instr_vif.rd_data), UVM_LOW);
 
 
         // Excecute the instruction
