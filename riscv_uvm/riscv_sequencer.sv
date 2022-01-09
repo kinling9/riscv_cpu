@@ -1,5 +1,17 @@
 //and or xor add sub andi ori xori sw lw beq jal
 typedef enum bit[3:0] {UNKNOWN_INSTR, AND, OR, XOR, ADD, SUB, ANDI, ORI, XORI, SW, LW, BEQ, JAL} instr_e;
+
+typedef struct { 
+  bit req;
+  bit [31:0] addr;
+} mem_rd_t;
+
+typedef struct { // 
+  bit req;
+  bit [31:0] addr;
+  bit [31:0] data;
+} mem_wr_t;
+
 class riscv_transaction extends uvm_sequence_item;
   rand instr_e instr;
   rand bit [11:0] imm;
@@ -8,17 +20,17 @@ class riscv_transaction extends uvm_sequence_item;
   rand bit [4:0] rs2;
   rand bit [4:0] rd;
   constraint my_constraint {
-    instr inside {[SW: LW]};
+    instr inside {[AND: JAL]};
     imm_jal inside {[0: 9'b1_1111_1111]};
+    // rs1 inside {[0:3]};
+    // rs2 inside {[0:3]};
+    // rd inside {[0:3]};
   }
   bit [31:0] pc;
 
   rand bit [31:0] mem_rd_data;
-  bit mem_rd_req;
-  bit mem_wr_req;
-  bit [31:0] mem_rd_addr;
-  bit [31:0] mem_wr_addr;
-  bit [31:0] mem_wr_data;
+  mem_rd_t mem_rd;
+  mem_wr_t mem_wr;
 
   bit valid_instr;
 
@@ -35,11 +47,11 @@ class riscv_transaction extends uvm_sequence_item;
     `uvm_field_int(rd, UVM_ALL_ON)
     `uvm_field_int(pc, UVM_ALL_ON)
     `uvm_field_int(mem_rd_data, UVM_ALL_ON)
-    `uvm_field_int(mem_rd_req, UVM_ALL_ON)
-    `uvm_field_int(mem_wr_req, UVM_ALL_ON)
-    `uvm_field_int(mem_rd_addr, UVM_ALL_ON)
-    `uvm_field_int(mem_wr_data, UVM_ALL_ON)
-    `uvm_field_int(mem_wr_addr, UVM_ALL_ON)
+    `uvm_field_int(mem_rd.req, UVM_ALL_ON)
+    `uvm_field_int(mem_rd.addr, UVM_ALL_ON)
+    `uvm_field_int(mem_wr.req, UVM_ALL_ON)
+    `uvm_field_int(mem_wr.data, UVM_ALL_ON)
+    `uvm_field_int(mem_wr.addr, UVM_ALL_ON)
   `uvm_object_utils_end
 endclass: riscv_transaction
 
