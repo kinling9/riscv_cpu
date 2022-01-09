@@ -67,7 +67,7 @@ class riscv_monitor_after extends uvm_monitor;
 
   logic [31:0] reg_ram [0:31];
 
-  bit [4:0] rd_history[0:2] = '{0,0,0};
+  bit [4:0] rd_history[0:3] = '{0,0,0,0};
   mem_rd_t mem_rd_delay[0:4] = '{'{0,0},'{0,0},'{0,0},'{0,0},'{0,0}};
   mem_wr_t mem_wr_delay[0:4] = '{'{0,0,0},'{0,0,0},'{0,0,0},'{0,0,0},'{0,0,0}};
   integer counter_hazard;
@@ -129,10 +129,10 @@ class riscv_monitor_after extends uvm_monitor;
         rv_tx_init();
         
 				instr_decode();
+        push_rd_history();
         // `uvm_info("rv_mon_after", rv_tx.sprint(), UVM_LOW);
         
         // `uvm_info("rv_mon_after", $sformatf("instr:%s, rs2:%d, rs1:%d, rd:%d, imm:%x, imm_jal:%x, instr_vif.rd_data:%x", rv_tx.instr.name(), rv_tx.rs2, rv_tx.rs1, rv_tx.rd, rv_tx.imm, {rv_tx.imm_jal, rv_tx.imm[11:1]}, instr_vif.rd_data), UVM_LOW);        
-
         
         // Excecute the instruction  
         if (counter_jal_beq === 0 && (counter_hazard === 0 || counter_hazard === 1)) begin 
@@ -148,7 +148,9 @@ class riscv_monitor_after extends uvm_monitor;
             change_pc_jal_beq = 0;
           end else if (counter_hazard === 0) begin
             rv_tx.pc += 4;
-          end        
+          end else if (counter_hazard === 1) begin
+            --counter_hazard;
+          end       
 
           foreach (rd_history[i]) begin
             if ((!(rd_history[i] === 0)) && 
@@ -172,10 +174,6 @@ class riscv_monitor_after extends uvm_monitor;
           delay_mem();
           execute();
 
-          if (instr_type_after == R_TYPE || 
-              instr_type_after == I_TYPE) begin
-            push_rd_history();
-          end 
         end else if (accept_after_hazard === 1) begin
           rv_tx.pc += 4;
           accept_after_hazard = 0;
@@ -205,7 +203,6 @@ class riscv_monitor_after extends uvm_monitor;
         if (mem_rd_delay[0].req == 1) begin
           rv_tx.mem_rd = mem_rd_delay[0];
         end
-        
 
 
         rv_tx_cg = rv_tx;
@@ -327,6 +324,7 @@ class riscv_monitor_after extends uvm_monitor;
 
   virtual function void execute();
     bit [31:0] imm_expand = {rv_tx.imm_jal, rv_tx.imm}; 
+    rd_history[3] = rv_tx.rd;
     rv_tx.valid_instr = 1;
     case (rv_tx.instr)
       AND: begin 
@@ -385,7 +383,8 @@ class riscv_monitor_after extends uvm_monitor;
   virtual function void push_rd_history();
     rd_history[0] = rd_history[1];
     rd_history[1] = rd_history[2];
-    rd_history[2] = rv_tx.rd;
+    rd_history[2] = rd_history[3];
+    rd_history[3] = 0;
   endfunction: push_rd_history
 
   virtual function void delay_mem();
