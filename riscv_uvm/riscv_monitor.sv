@@ -44,7 +44,7 @@ class riscv_monitor_before extends uvm_monitor;
         rv_tx.mem_rd.req = mem_vif.rd_req;
         rv_tx.mem_wr.data = mem_vif.wr_data;
         //Send the transaction to the analysis port
-        //`uvm_info("rv_mon_before", rv_tx.sprint(), UVM_LOW);
+        // `uvm_info("rv_mon_before", rv_tx.sprint(), UVM_LOW);
         // `uvm_info("rv_mon_before ROM", $sformatf("pc: %d, ", $signed(rv_tx.pc)), UVM_LOW);
         // `uvm_info("rv_mon_before read RAM", $sformatf("mem_rd.req: %x, mem_rd.addr: %x", rv_tx.mem_rd.req, rv_tx.mem_rd.addr), UVM_LOW);
         // `uvm_info("rv_mon_before write RAM", $sformatf("mem_wr.req: %x, mem_wr.addr: %x, mem_wr.data: %x,", rv_tx.mem_wr.req, rv_tx.mem_wr.addr, rv_tx.mem_wr.data), UVM_LOW);
@@ -167,7 +167,7 @@ class riscv_monitor_after extends uvm_monitor;
                 rd_history[i] = 0;
                 flush = i;
                 `uvm_info("rv_mon_after", 
-                        $sformatf("this instr causes HAZARD!", ), UVM_LOW);
+                        $sformatf("this instr causes HAZARD!"), UVM_LOW);
               end else if (i === 2) begin 
                 accept_after_hazard = 0;
                 counter_hazard_nxt = i + 1;
@@ -198,8 +198,10 @@ class riscv_monitor_after extends uvm_monitor;
         end */ 
         end else if (!(counter_hazard === 0)) begin 
           --counter_hazard;
-          rd_history[0] = rd_history[1];
-          rd_history[1] = 0;
+
+          //simulate half of the pipeline moves 
+          half_delay();
+          
           `uvm_info("rv_mon_after", "REJECT because of HAZARD!", UVM_LOW);
           if ((counter_hazard === 0) && !(counter_hazard_nxt === 0)) begin
             counter_hazard = counter_hazard_nxt;
@@ -209,6 +211,7 @@ class riscv_monitor_after extends uvm_monitor;
           end
         end else if (!(counter_jal_beq === 0)) begin 
           --counter_jal_beq;
+          delay_mem();
           rv_tx.pc += 4;
           `uvm_info("rv_mon_after", "REJECT because of previous JAL or BEQ!", UVM_LOW);
           change_pc_jal_beq = 0;
@@ -427,5 +430,17 @@ class riscv_monitor_after extends uvm_monitor;
     mem_wr_delay[4] = '{0,0,0};
   endfunction: delay_mem
 
+  virtual function void half_delay();
+    mem_rd_delay[0] = mem_rd_delay[1];
+    mem_rd_delay[1] = mem_rd_delay[2];
+    mem_rd_delay[2] = '{0,0};
+
+    mem_wr_delay[0] = mem_wr_delay[1];
+    mem_wr_delay[1] = mem_wr_delay[2];
+    mem_wr_delay[2] = '{0,0,0};
+
+    rd_history[0] = rd_history[1];
+    rd_history[1] = 0;
+  endfunction: half_delay
 
 endclass: riscv_monitor_after 
