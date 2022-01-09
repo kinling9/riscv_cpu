@@ -1,10 +1,6 @@
 //and or xor add sub andi ori xori sw lw beq jal
 typedef enum bit[3:0] {UNKNOWN_INSTR, AND, OR, XOR, ADD, SUB, ANDI, ORI, XORI, SW, LW, BEQ, JAL} instr_e;
 class riscv_transaction extends uvm_sequence_item;
-  rand bit[1:0] ina;
-  rand bit[1:0] inb;
-  bit[2:0] out;
-
   rand instr_e instr;
   rand bit [11:0] imm;
   rand bit [31:12] imm_jal;
@@ -12,8 +8,8 @@ class riscv_transaction extends uvm_sequence_item;
   rand bit [4:0] rs2;
   rand bit [4:0] rd;
   constraint my_constraint {
-    instr != UNKNOWN_INSTR;
-    imm_jal <= 9'b1_1111_1111;
+    instr inside {[SW: LW]};
+    imm_jal inside {[0: 9'b1_1111_1111]};
   }
   bit [31:0] pc;
 
@@ -24,14 +20,13 @@ class riscv_transaction extends uvm_sequence_item;
   bit [31:0] mem_wr_addr;
   bit [31:0] mem_wr_data;
 
+  bit valid_instr;
+
   function new(string name = "");
     super.new(name);
   endfunction: new
 
   `uvm_object_utils_begin(riscv_transaction)
-    `uvm_field_int(ina, UVM_ALL_ON)
-    `uvm_field_int(inb, UVM_ALL_ON)
-    `uvm_field_int(out, UVM_ALL_ON)
     `uvm_field_enum(instr_e, instr, UVM_ALL_ON)
     `uvm_field_int(imm, UVM_ALL_ON)
     `uvm_field_int(imm_jal, UVM_ALL_ON)
