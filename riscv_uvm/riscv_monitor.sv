@@ -73,6 +73,7 @@ class riscv_monitor_after extends uvm_monitor;
   integer counter_hazard;
   integer counter_hazard_nxt;
   integer counter_jal_beq;
+  integer flush;
   bit change_pc_jal_beq;
   bit accept_after_hazard; 
   // here accept_after_hazard act as enable pc+=4 after hazard, 
@@ -115,6 +116,7 @@ class riscv_monitor_after extends uvm_monitor;
     counter_jal_beq = 0;
     change_pc_jal_beq = 0;
     accept_after_hazard = 0;
+    flush = 0;
     foreach (reg_ram[i]) begin
       reg_ram[i] = 0;
     end
@@ -129,19 +131,20 @@ class riscv_monitor_after extends uvm_monitor;
         rv_tx_init();
         
 				instr_decode();
-        push_rd_history();
+        
         // `uvm_info("rv_mon_after", rv_tx.sprint(), UVM_LOW);
         
         // `uvm_info("rv_mon_after", $sformatf("instr:%s, rs2:%d, rs1:%d, rd:%d, imm:%x, imm_jal:%x, instr_vif.rd_data:%x", rv_tx.instr.name(), rv_tx.rs2, rv_tx.rs1, rv_tx.rd, rv_tx.imm, {rv_tx.imm_jal, rv_tx.imm[11:1]}, instr_vif.rd_data), UVM_LOW);        
         
         // Excecute the instruction  
         //if (counter_jal_beq === 0 && (counter_hazard === 0 || counter_hazard === 1)) begin 
+        $display("start accept_after_hazard: %d", accept_after_hazard);
         if (counter_jal_beq === 0 && (counter_hazard === 0 || accept_after_hazard === 1)) begin
 
-          // /* if (accept_after_hazard === 1) begin
-          //   `uvm_info("rv_mon_after", $sformatf("accept this instruction right after HAZARD! bubble num: %d", counter_hazard), UVM_LOW);
-          //   accept_after_hazard = 0;
-          // end */
+          if (accept_after_hazard === 1) begin
+            `uvm_info("rv_mon_after", $sformatf("accept right after HAZARD!"), UVM_LOW);
+            accept_after_hazard = 0;
+          end
 
           if ((change_pc_jal_beq === 1)) begin 
             rv_tx.pc = beq_jal_pc;
@@ -152,36 +155,42 @@ class riscv_monitor_after extends uvm_monitor;
             --counter_hazard;
           end */       
 
-          foreach (rd_history[i]) begin
+          flush = 0;
+          push_rd_history();
+          for (int i = 3; i > -1; --i) begin
             if ((!(rd_history[i] === 0)) && 
                 (rv_tx.rs1 === rd_history[i] || 
                 rv_tx.rs2 === rd_history[i])) begin
               if (counter_hazard === 0) begin
                 accept_after_hazard = 1;
                 counter_hazard = i + 1;
+                rd_history[i] = 0;
+                flush = i;
                 `uvm_info("rv_mon_after", 
-                        $sformatf("this instr causes HAZARD! cur bubble: %d, potential bubble: %d", 
-                        counter_hazard, counter_hazard_nxt), UVM_LOW);
-              end else begin 
+                        $sformatf("this instr causes HAZARD!", ), UVM_LOW);
+              end else if (i === 2) begin 
                 accept_after_hazard = 0;
-                if (i === 2) begin
-                  counter_hazard_nxt = i + 1;
-                  `uvm_info("rv_mon_after", 
-                          $sformatf("accept HAZARD after HAZARD! cur bubble: %d, potential bubble: %d", 
-                          counter_hazard, counter_hazard_nxt), UVM_LOW);
-                end
+                counter_hazard_nxt = i + 1;
+                `uvm_info("rv_mon_after", 
+                        $sformatf("accept HAZARD after HAZARD!"), UVM_LOW);
               end
+              // $display("i = %d", i);
+              break;
               /* accept_after_hazard = 1;
               counter_hazard = i + 1; */
             end
-          end                
+          end     
+
+          foreach (rd_history[i]) begin
+            if (i < flush) begin
+              rd_history[i] = 0;
+            end
+            // $display("%d", rd_history[i]);
+          end           
           
           delay_mem();
+          
           execute();
-        
-        
-        
-        
         /* end else if (accept_after_hazard === 1) begin
           rv_tx.pc += 4;
           accept_after_hazard = 0;
@@ -189,11 +198,15 @@ class riscv_monitor_after extends uvm_monitor;
         end */ 
         end else if (!(counter_hazard === 0)) begin 
           --counter_hazard;
+          rd_history[0] = rd_history[1];
+          rd_history[1] = 0;
           `uvm_info("rv_mon_after", "REJECT because of HAZARD!", UVM_LOW);
-        end else if ((counter_hazard === 0) && !(counter_hazard_nxt === 0)) begin
-          counter_hazard = counter_hazard_nxt;
-          accept_after_hazard = 0;
-          counter_hazard_nxt = 0;
+          if ((counter_hazard === 0) && !(counter_hazard_nxt === 0)) begin
+            counter_hazard = counter_hazard_nxt;
+            accept_after_hazard = 1;
+            counter_hazard_nxt = 0;
+            `uvm_info("rv_mon_after", "prepare for chain HAZARD!", UVM_LOW);
+          end
         end else if (!(counter_jal_beq === 0)) begin 
           --counter_jal_beq;
           rv_tx.pc += 4;
@@ -204,6 +217,8 @@ class riscv_monitor_after extends uvm_monitor;
             --counter_jal_beq;
           end
         end
+
+        $display("end accept_after_hazard: %d", accept_after_hazard);
         `uvm_info("rv_mon_after", 
                   $sformatf("cur bubble: %d, potential bubble: %d", 
                   counter_hazard, counter_hazard_nxt), UVM_LOW);
