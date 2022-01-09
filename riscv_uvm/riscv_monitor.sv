@@ -38,16 +38,16 @@ class riscv_monitor_before extends uvm_monitor;
       @(posedge ctrl_vif.clk)
       begin
         rv_tx.pc = instr_vif.rd_addr;
-        rv_tx.mem_wr_addr = mem_vif.wr_addr;
-        rv_tx.mem_rd_addr = mem_vif.rd_addr;
-        rv_tx.mem_wr_req = mem_vif.wr_req;
-        rv_tx.mem_rd_req = mem_vif.rd_req;
-        rv_tx.mem_wr_data = mem_vif.wr_data;
+        rv_tx.mem_wr.addr = mem_vif.wr_addr;
+        rv_tx.mem_rd.addr = mem_vif.rd_addr;
+        rv_tx.mem_wr.req = mem_vif.wr_req;
+        rv_tx.mem_rd.req = mem_vif.rd_req;
+        rv_tx.mem_wr.data = mem_vif.wr_data;
         //Send the transaction to the analysis port
         //`uvm_info("rv_mon_before", rv_tx.sprint(), UVM_LOW);
-        `uvm_info("rv_mon_before ROM", $sformatf("pc: %d, ", $signed(rv_tx.pc)), UVM_LOW);
-        `uvm_info("rv_mon_before read RAM", $sformatf("mem_rd_req: %x, mem_rd_addr: %x", rv_tx.mem_rd_req, rv_tx.mem_rd_addr), UVM_LOW);
-        `uvm_info("rv_mon_before write RAM", $sformatf("mem_wr_req: %x, mem_wr_addr: %x, mem_wr_data: %x,", rv_tx.mem_wr_req, rv_tx.mem_wr_addr, rv_tx.mem_wr_data), UVM_LOW);
+        // `uvm_info("rv_mon_before ROM", $sformatf("pc: %d, ", $signed(rv_tx.pc)), UVM_LOW);
+        // `uvm_info("rv_mon_before read RAM", $sformatf("mem_rd.req: %x, mem_rd.addr: %x", rv_tx.mem_rd.req, rv_tx.mem_rd.addr), UVM_LOW);
+        // `uvm_info("rv_mon_before write RAM", $sformatf("mem_wr.req: %x, mem_wr.addr: %x, mem_wr.data: %x,", rv_tx.mem_wr.req, rv_tx.mem_wr.addr, rv_tx.mem_wr.data), UVM_LOW);
         mon_ap_before.write(rv_tx);
       end
     end
@@ -67,10 +67,14 @@ class riscv_monitor_after extends uvm_monitor;
 
   logic [31:0] reg_ram [0:31];
 
-  bit [4:0] rd_history[3] = '{0,0,0};
+  bit [4:0] rd_history[0:2] = '{0,0,0};
+  mem_rd_t mem_rd_delay[0:4] = '{'{0,0},'{0,0},'{0,0},'{0,0},'{0,0}};
+  mem_wr_t mem_wr_delay[0:4] = '{'{0,0,0},'{0,0,0},'{0,0,0},'{0,0,0},'{0,0,0}};
   integer counter_hazard;
+  integer counter_hazard_nxt;
   integer counter_jal_beq;
   bit change_pc_jal_beq;
+  bit accept_after_hazard;
   bit [31:0] beq_jal_pc;
   instr_type instr_type_after;
   
@@ -105,8 +109,10 @@ class riscv_monitor_after extends uvm_monitor;
 
   task run_phase(uvm_phase phase);
     counter_hazard = 0;
+    counter_hazard_nxt = 0;
     counter_jal_beq = 0;
     change_pc_jal_beq = 0;
+    accept_after_hazard = 0;
     foreach (reg_ram[i]) begin
       reg_ram[i] = 0;
     end
@@ -125,18 +131,32 @@ class riscv_monitor_after extends uvm_monitor;
         
         // `uvm_info("rv_mon_after", $sformatf("instr:%s, rs2:%d, rs1:%d, rd:%d, imm:%x, imm_jal:%x, instr_vif.rd_data:%x", rv_tx.instr.name(), rv_tx.rs2, rv_tx.rs1, rv_tx.rd, rv_tx.imm, {rv_tx.imm_jal, rv_tx.imm[11:1]}, instr_vif.rd_data), UVM_LOW);        
 
-        // Excecute the instruction
         
-        
-        if (counter_hazard + counter_jal_beq == 0) begin 
+        // Excecute the instruction  
+        if (counter_jal_beq === 0 && (counter_hazard === 0 || accept_after_hazard === 1)) begin 
+          
+          if (accept_after_hazard === 1) begin
+            `uvm_info("rv_mon_after", $sformatf("accept this instruction right after HAZARD! bubble num: %d", counter_hazard), UVM_LOW);
+            accept_after_hazard = 0;
+          end
+
           foreach (rd_history[i]) begin
             if ((!(rd_history[i] === 0)) && 
                 (rv_tx.rs1 === rd_history[i] || 
                 rv_tx.rs2 === rd_history[i])) begin
-              counter_hazard = i + 1;
-              `uvm_info("rv_mon_after", $sformatf("ACCEPT WITH HAZARD! %d", rd_history[i]), UVM_LOW);
+              if (counter_hazard === 0) begin
+                accept_after_hazard = 1;
+                counter_hazard = i + 1;
+              end else begin 
+                accept_after_hazard = 0;
+                counter_hazard_nxt = i + 1;
+              end
+
+              `uvm_info("rv_mon_after", $sformatf("this instruction causes HAZARD! cur bubble num: %d, potential bubble num: %d", counter_hazard, counter_hazard_nxt), UVM_LOW);
             end
           end
+
+          
 
           if ((change_pc_jal_beq === 1)) begin 
             rv_tx.pc = beq_jal_pc;
@@ -145,6 +165,7 @@ class riscv_monitor_after extends uvm_monitor;
             rv_tx.pc += 4;
           end                    
           
+          delay_mem();
           execute();
 
           if (instr_type_after == R_TYPE || 
@@ -154,6 +175,10 @@ class riscv_monitor_after extends uvm_monitor;
         end else if (!(counter_hazard === 0)) begin 
           --counter_hazard;
           `uvm_info("rv_mon_after", "REJECT because of HAZARD!", UVM_LOW);
+        end else if ((counter_hazard === 0) && !(counter_hazard_nxt === 0)) begin
+          counter_hazard = counter_hazard_nxt;
+          accept_after_hazard = 0;
+          counter_hazard_nxt = 0;
         end else if (!(counter_jal_beq === 0)) begin 
           --counter_jal_beq;
           rv_tx.pc += 4;
@@ -164,11 +189,17 @@ class riscv_monitor_after extends uvm_monitor;
             --counter_jal_beq;
           end
         end
+
+        if (mem_wr_delay[0].req == 1) begin
+          rv_tx.mem_wr = mem_wr_delay[0];
+        end
+
+        if (mem_rd_delay[0].req == 1) begin
+          rv_tx.mem_rd = mem_rd_delay[0];
+        end
         
 
 
-        //Predict the result
-        predictor();
         rv_tx_cg = rv_tx;
 
         //Coverage
@@ -177,78 +208,15 @@ class riscv_monitor_after extends uvm_monitor;
         //Send the transaction to the analysis port
         //`uvm_info("rv_driver", rv_tx.sprint(), UVM_LOW);
 
-        `uvm_info("rv_mon_after ROM", $sformatf("pc: %d, ", $signed(rv_tx.pc)), UVM_LOW);
-        `uvm_info("rv_mon_after read RAM", $sformatf("mem_rd_req: %x, mem_rd_addr: %x", rv_tx.mem_rd_req, rv_tx.mem_rd_addr), UVM_LOW);
-        `uvm_info("rv_mon_after write RAM", $sformatf("mem_wr_req: %x, mem_wr_addr: %x, mem_wr_data: %x,", rv_tx.mem_wr_req, rv_tx.mem_wr_addr, rv_tx.mem_wr_data), UVM_LOW);
+        // `uvm_info("rv_mon_after ROM", $sformatf("pc: %d, ", $signed(rv_tx.pc)), UVM_LOW);
+        // `uvm_info("rv_mon_after read RAM", $sformatf("mem_rd.req: %x, mem_rd.addr: %x", rv_tx.mem_rd.req, rv_tx.mem_rd.addr), UVM_LOW);
+        // `uvm_info("rv_mon_after write RAM", $sformatf("mem_wr.req: %x, mem_wr.addr: %x, mem_wr.data: %x,", rv_tx.mem_wr.req, rv_tx.mem_wr.addr, rv_tx.mem_wr.data), UVM_LOW);
         mon_ap_after.write(rv_tx);
       end
     end
   endtask: run_phase
 
-  virtual function void execute();
-    bit [31:0] imm_expand = {rv_tx.imm_jal, rv_tx.imm}; 
-    rv_tx.valid_instr = 1;
-    case (rv_tx.instr)
-      AND: begin 
-        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] & reg_ram[rv_tx.rs2];
-      end
-      OR: begin 
-        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] | reg_ram[rv_tx.rs2];
-      end
-      XOR: begin 
-        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] ^ reg_ram[rv_tx.rs2];
-      end
-      ADD: begin 
-        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] + reg_ram[rv_tx.rs2];
-      end
-      SUB: begin 
-        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] - reg_ram[rv_tx.rs2];
-      end
-      ANDI: begin 
-        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] & imm_expand;
-      end
-      ORI: begin 
-        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] | imm_expand;
-      end
-      XORI: begin 
-        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] ^ imm_expand;
-      end
-      SW: begin
-        rv_tx.mem_wr_data = reg_ram[rv_tx.rs2];
-        rv_tx.mem_wr_addr = reg_ram[rv_tx.rs1] + imm_expand;
-        rv_tx.mem_wr_req = 1;
-        // `uvm_info("rv_mon_after write RAM", $sformatf("mem_wr_req: %x, mem_wr_addr: %x, mem_wr_data: %x,imm = %x", rv_tx.mem_wr_req, rv_tx.mem_wr_addr, rv_tx.mem_wr_data, $signed(imm_expand)), UVM_LOW);
-      end
-      LW: begin
-        reg_ram[rv_tx.rd] = mem_vif.rd_data;
-        rv_tx.mem_rd_addr = reg_ram[rv_tx.rs1] + {rv_tx.imm_jal, rv_tx.imm};
-        rv_tx.mem_rd_req = 1;
-      end
-      BEQ: begin
-        if (reg_ram[rv_tx.rs1] === reg_ram[rv_tx.rs2]) begin
-          beq_jal_pc = rv_tx.pc + {rv_tx.imm_jal, rv_tx.imm};
-          counter_jal_beq = 3;
-        end
-      end
-      JAL: begin
-        beq_jal_pc = rv_tx.pc + {rv_tx.imm_jal, rv_tx.imm};
-        counter_jal_beq = 2;
-      end
-      default: begin
-        `uvm_info("rv_mon_after", "UNKNOWN_INSTR", UVM_LOW);
-      end
-    endcase
-  endfunction: execute
-
-  virtual function void predictor();
-  endfunction: predictor
-
-  virtual function void push_rd_history();
-    rd_history[0] = rd_history[1];
-    rd_history[1] = rd_history[2];
-    rd_history[2] = rv_tx.rd;
-  endfunction: push_rd_history
-
+  
   virtual function void rv_tx_init();
     rv_tx.instr = UNKNOWN_INSTR;
     rv_tx.rs2 = 0;
@@ -256,11 +224,11 @@ class riscv_monitor_after extends uvm_monitor;
     rv_tx.rd = 0;
     rv_tx.imm = 0;
     rv_tx.imm_jal = 0;
-    rv_tx.mem_wr_addr = 0;
-    rv_tx.mem_rd_addr = 0;
-    rv_tx.mem_wr_req = 0;
-    rv_tx.mem_rd_req = 0;
-    rv_tx.mem_wr_data = 0;
+    rv_tx.mem_wr.addr = 0;
+    rv_tx.mem_rd.addr = 0;
+    rv_tx.mem_wr.req = 0;
+    rv_tx.mem_rd.req = 0;
+    rv_tx.mem_wr.data = 0;
     rv_tx.valid_instr = 0;
   endfunction: rv_tx_init;
 
@@ -348,5 +316,83 @@ class riscv_monitor_after extends uvm_monitor;
       end
     endcase
   endfunction: instr_decode;
+
+  virtual function void execute();
+    bit [31:0] imm_expand = {rv_tx.imm_jal, rv_tx.imm}; 
+    rv_tx.valid_instr = 1;
+    case (rv_tx.instr)
+      AND: begin 
+        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] & reg_ram[rv_tx.rs2];
+      end
+      OR: begin 
+        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] | reg_ram[rv_tx.rs2];
+      end
+      XOR: begin 
+        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] ^ reg_ram[rv_tx.rs2];
+      end
+      ADD: begin 
+        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] + reg_ram[rv_tx.rs2];
+      end
+      SUB: begin 
+        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] - reg_ram[rv_tx.rs2];
+      end
+      ANDI: begin 
+        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] & imm_expand;
+      end
+      ORI: begin 
+        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] | imm_expand;
+      end
+      XORI: begin 
+        reg_ram[rv_tx.rd] = reg_ram[rv_tx.rs1] ^ imm_expand;
+      end
+      SW: begin
+        imm_expand[1:0] = 2'b00;
+        mem_wr_delay[4].data = reg_ram[rv_tx.rs2];
+        mem_wr_delay[4].addr = reg_ram[rv_tx.rs1] + imm_expand;
+        mem_wr_delay[4].req = 1;
+        // `uvm_info("rv_mon_after write RAM", $sformatf("mem_wr.req: %x, mem_wr.addr: %x, mem_wr.data: %x,imm = %x", rv_tx.mem_wr.req, rv_tx.mem_wr.addr, rv_tx.mem_wr.data, $signed(imm_expand)), UVM_LOW);
+      end
+      LW: begin
+        imm_expand[1:0] = 2'b00;
+        reg_ram[rv_tx.rd] = mem_vif.rd_data;
+        mem_rd_delay[4].addr = reg_ram[rv_tx.rs1] + imm_expand;
+        mem_rd_delay[4].req = 1;
+      end
+      BEQ: begin
+        if (reg_ram[rv_tx.rs1] === reg_ram[rv_tx.rs2]) begin
+          beq_jal_pc = rv_tx.pc + {rv_tx.imm_jal, rv_tx.imm};
+          counter_jal_beq = 3;
+        end
+      end
+      JAL: begin
+        beq_jal_pc = rv_tx.pc + {rv_tx.imm_jal, rv_tx.imm};
+        counter_jal_beq = 2;
+      end
+      default: begin
+        `uvm_info("rv_mon_after", "UNKNOWN_INSTR", UVM_LOW);
+      end
+    endcase
+  endfunction: execute
+
+  virtual function void push_rd_history();
+    rd_history[0] = rd_history[1];
+    rd_history[1] = rd_history[2];
+    rd_history[2] = rv_tx.rd;
+  endfunction: push_rd_history
+
+  virtual function void delay_mem();
+    mem_rd_delay[0] = mem_rd_delay[1];
+    mem_rd_delay[1] = mem_rd_delay[2];
+    mem_rd_delay[2] = mem_rd_delay[3];
+    mem_rd_delay[3] = mem_rd_delay[4];
+    mem_rd_delay[4] = '{0,0};
+
+    mem_wr_delay[0] = mem_wr_delay[1];
+    mem_wr_delay[1] = mem_wr_delay[2];
+    mem_wr_delay[2] = mem_wr_delay[3];
+    mem_wr_delay[3] = mem_wr_delay[4];
+    mem_wr_delay[4] = '{0,0,0};
+  endfunction: delay_mem
+
 
 endclass: riscv_monitor_after 
