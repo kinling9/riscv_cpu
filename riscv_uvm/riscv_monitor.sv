@@ -70,6 +70,8 @@ class riscv_monitor_after extends uvm_monitor;
   bit [4:0] rd_history[3] = '{0,0,0};
   integer counter_hazard;
   integer counter_jal_beq;
+  bit change_pc_jal_beq;
+  bit [31:0] beq_jal_pc;
   instr_type instr_type_after;
   
   //For coverage
@@ -104,6 +106,7 @@ class riscv_monitor_after extends uvm_monitor;
   task run_phase(uvm_phase phase);
     counter_hazard = 0;
     counter_jal_beq = 0;
+    change_pc_jal_beq = 0;
     foreach (reg_ram[i]) begin
       reg_ram[i] = 0;
     end
@@ -135,7 +138,13 @@ class riscv_monitor_after extends uvm_monitor;
             end
           end
 
-          rv_tx.pc += 4;
+          if ((change_pc_jal_beq === 1)) begin 
+            rv_tx.pc = beq_jal_pc;
+            change_pc_jal_beq = 0;
+          end else begin
+            rv_tx.pc += 4;
+          end                    
+          
           execute();
 
           if (instr_type_after == R_TYPE || 
@@ -147,8 +156,15 @@ class riscv_monitor_after extends uvm_monitor;
           `uvm_info("rv_mon_after", "REJECT because of HAZARD!", UVM_LOW);
         end else if (!(counter_jal_beq === 0)) begin 
           --counter_jal_beq;
+          rv_tx.pc += 4;
           `uvm_info("rv_mon_after", "REJECT because of previous JAL or BEQ!", UVM_LOW);
+          change_pc_jal_beq = 0;
+          if ((counter_jal_beq === 1)) begin 
+            change_pc_jal_beq = 1;
+            --counter_jal_beq;
+          end
         end
+        
 
 
         //Predict the result
@@ -201,7 +217,7 @@ class riscv_monitor_after extends uvm_monitor;
         rv_tx.mem_wr_data = reg_ram[rv_tx.rs2];
         rv_tx.mem_wr_addr = reg_ram[rv_tx.rs1] + imm_expand;
         rv_tx.mem_wr_req = 1;
-        `uvm_info("rv_mon_after write RAM", $sformatf("mem_wr_req: %x, mem_wr_addr: %x, mem_wr_data: %x,imm = %x", rv_tx.mem_wr_req, rv_tx.mem_wr_addr, rv_tx.mem_wr_data, $signed(imm_expand)), UVM_LOW);
+        // `uvm_info("rv_mon_after write RAM", $sformatf("mem_wr_req: %x, mem_wr_addr: %x, mem_wr_data: %x,imm = %x", rv_tx.mem_wr_req, rv_tx.mem_wr_addr, rv_tx.mem_wr_data, $signed(imm_expand)), UVM_LOW);
       end
       LW: begin
         reg_ram[rv_tx.rd] = mem_vif.rd_data;
@@ -210,14 +226,13 @@ class riscv_monitor_after extends uvm_monitor;
       end
       BEQ: begin
         if (reg_ram[rv_tx.rs1] === reg_ram[rv_tx.rs2]) begin
-          rv_tx.pc += {rv_tx.imm_jal, rv_tx.imm};
-        end else begin
-          counter_jal_beq = 2;
+          beq_jal_pc = rv_tx.pc + {rv_tx.imm_jal, rv_tx.imm};
+          counter_jal_beq = 3;
         end
       end
       JAL: begin
-        rv_tx.pc += {rv_tx.imm_jal, rv_tx.imm};
-        counter_jal_beq = 1;
+        beq_jal_pc = rv_tx.pc + {rv_tx.imm_jal, rv_tx.imm};
+        counter_jal_beq = 2;
       end
       default: begin
         `uvm_info("rv_mon_after", "UNKNOWN_INSTR", UVM_LOW);

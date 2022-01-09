@@ -90,8 +90,6 @@ class riscv_driver extends uvm_driver#(riscv_transaction);
           end
         endcase
         
-        // `uvm_info("rv_driver", $sformatf("%d%d%d%d%d%d%d",instr_vif.rd_data[6],instr_vif.rd_data[5],instr_vif.rd_data[4],instr_vif.rd_data[3],instr_vif.rd_data[2],instr_vif.rd_data[1],instr_vif.rd_data[0]), UVM_LOW);
-
         //`uvm_info("rv_driver", $sformatf("instr:%s, rs2:%x, rs1:%x, rd:%x, imm:%x, imm_jal:%x, instr_vif.rd_data:%x", rv_tx.instr.name(), rv_tx.rs2, rv_tx.rs1, rv_tx.rd, rv_tx.imm, rv_tx.imm_jal, instr_vif.rd_data), UVM_LOW);
         `uvm_info("rv_driver", $sformatf("instr_vif.rd_data:%x", instr_vif.rd_data), UVM_LOW);
 
