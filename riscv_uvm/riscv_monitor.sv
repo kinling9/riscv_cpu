@@ -147,10 +147,6 @@ class riscv_monitor_after extends uvm_monitor;
             accept_after_hazard = 0;
           end
 
-          if (!(counter_jal_beq === 0)) begin
-            --counter_jal_beq;
-          end
-
           if ((change_pc_jal_beq === 1)) begin 
             rv_tx.pc = beq_jal_pc;
             change_pc_jal_beq = 0;
@@ -193,8 +189,11 @@ class riscv_monitor_after extends uvm_monitor;
           
           
           delay_mem();
-          
-          execute();
+          if (!(counter_jal_beq === 0)) begin
+            --counter_jal_beq;
+          end else begin
+            execute();
+          end
         /* end else if (accept_after_hazard === 1) begin
           rv_tx.pc += 4;
           accept_after_hazard = 0;
