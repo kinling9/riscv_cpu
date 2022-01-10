@@ -243,6 +243,8 @@ instruction rom用于存储即将被发射验证的指令序列，使用简单�
 
 对于IMEM，将指令拆成了几个可以随机的部分：指令类型instr，源寄存器地址rs1和rs2，目的寄存器地址rd，以及立即数（分为12位短立即数imm和用于超过12位部分的imm_jal)。CPU对下一个指令的地址输出是通向IMEM的rd_addr，读的地址，也即pc寄存器的值。
 
+通过添加Constraint，可以生成多种针对性的sequence。如果想要测试高冲突，可以设置rs1，rs2，rd在一个窄范围，如[0:3]；如果想要测试读写，可以提高读写部分的指令概率；如果想要测试极限跳转和跳转后溢出，可以对imm限定一个较极限的范围。
+
 ```
 typedef enum bit[3:0] {UNKNOWN_INSTR, AND, OR, XOR, ADD, SUB, ANDI, ORI, XORI, SW, LW, BEQ, JAL} instr_e;
   rand instr_e instr;
@@ -274,12 +276,49 @@ typedef struct { //
 
 ##### Driver
 在Sequence中，我们随机生成一系列的transaction，也即输入的指令与数据信息。之后，我们从uvm_driver基类派生riscv_driver类，将Driver连接到信号接口，从Sequencer上获取抽象的指令类型、寄存器地址等，将其驱动到接口并等待 DUT的回应。
-具体来说，我们需要根据RISC-V的指令格式填入完整的32位指令。举例来说，对于AND指令，我们的输入便是 {7'b0000000, rv_tx.rs2, rv_tx.rs1, 3'b111, rv_tx.rd, 7'b0110011}。生成RISC-V的32位指令后，我们通过总线输入到待测CPU上。
+具体来说，我们需要在top模块reset完成后，在每个时钟周期里，根据RISC-V的指令格式填入完整的32位指令。举例来说，对于AND指令，我们的输入便是 {7'b0000000, rv_tx.rs2, rv_tx.rs1, 3'b111, rv_tx.rd, 7'b0110011}。生成RISC-V的32位指令后，我们通过总线输入到待测CPU上。
+此外，为了数据在CPU处理的上升时钟沿保持稳定，driver模块的驱动信号是在下降时钟沿进行，即提前半个周期。
+需要注意的是，在面对数据冲突的时候，流水线插入了bubble，pc值不变。但是在我们的sequence中，输入指令一直被生成，但在实际的DUT中不会被读入，这一步将在Monitor被考虑。
+
+##### Monitor
+
+Monitor是一个独立的模型，用于观察 DUT 与测试台的通信。Monitor是无源元件，它不会将任何信号驱动到DUT中，其目的是提取信号信息并将其转换为有意义的信息，以便由其他组件进行评估。这里我们应该观察DUT的输出，并且在DUT出现不符合预测的情况下，返回有意义信息。
+
+Monitor应涵盖：
+- 用于验证功能的 DUT 输出
+- 用于功能覆盖率分析的 DUT 输入
+
+对于此验证计划，我们创建两个不同的监视器：第一个监视器monitor_before将仅获取待测CPU的输出信息，并将结果传递到Scoreboard。第二个监视器monitor_after将获取IMEM和DMEM的输入，并预测预期结果。Scoreboard将获得此预测结果，并在两个值之间进行比较。这两个Monitor均在Top模块rst_n复位完成后开始监测。
+
+monitor_before结构较为简单，读入CPU DUT的输出保存，并写入通往其他组件（Scoreboard）的FIFO。
+
+```
+#30;
+    forever begin
+      @(posedge ctrl_vif.clk)
+      begin
+        rv_tx.pc = instr_vif.rd_addr;
+        rv_tx.mem_wr.addr = mem_vif.wr_addr;
+        rv_tx.mem_rd.addr = mem_vif.rd_addr;
+        rv_tx.mem_wr.req = mem_vif.wr_req;
+        rv_tx.mem_rd.req = mem_vif.rd_req;
+        rv_tx.mem_wr.data = mem_vif.wr_data;
+        //Send the transaction to the analysis port
+        mon_ap_before.write(rv_tx);
+      end
+```
+
+对于monitor_after，则要检测DUT的输入端，并模拟CPU的行为对输出进行预测。为了验证的准确性，我们对于数据和指令选择了不同的测试方式，对于pc指针，由于需要验证冲突解决模块的准确性，我们需要给出实时的指针数据，从而验证CPU运行过程的正确性，如果按照指令顺序输出pc值，将导致跳转预测或是数据冲突过程中，理想CPU和DUT之间的运算差距，从而导致测试的失败。
+
+而对于数据，由于CPU需要保证指令执行的正确性，因此，在理想CPU中，我们可以直接进行指令的运算过程，并将结果传递给scoreboard。在scoreboard接收到输出结果后，并不直接进行结果正确性的验证，而是将其放置于队列中，在几个周期后来自DUT的结果完成后，从队列中将理想结果进行取出，并判断二者是否相等。可以认为，我们只在指令发射过程中检测CPU的时序特性，而在数据输出中，我们只检测结果的输出顺序以及其正确性。
+
+
 
 ##### Scoreboard
 
 Scoreboard是自检环境中的关键元素，它可以在功能级别验证设计的正确操作。在我们的设计中，是对Monitor中的 DUT 功能进行预测，并让Scoreboard将预测与 DUT 的响应进行比较。
-在Agent中，我们创建了两个monitor，因此，我们在记分板中创建两个analysis exports，用于从两个monitor回收它们写入的transaction。之后，将在运行阶段run()执行一个方法compare()，并比较两个transaction中的输出信息：pc，mem_rd，mem_wr。如果它们匹配，则意味着测试平台和 DUT 在功能上都一致，并且将返回"OK"消息。
+在Agent中，我们创建了两个monitor，因此，我们在记分板中创建两个analysis exports，用于从两个monitor回收它们写入的transaction。在这个过程中，我们有来自两个monitor的transaction流，因此需要确保它们是同步的。通过使用 UVM FIFO，可以简单做到这一点。与port/export一样，我们使用uvm_tlm_analysis_fifo #(generic_transaction)实例化FIFO，它们已经实现了从monitor调用的相应write()函数。要访问其数据，我们只需从每个FIFO执行get()方法即可。
+之后，将在运行阶段run()执行一个方法compare()，并比较两个transaction中的输出信息：pc，mem_rd，mem_wr。如果它们匹配，则意味着测试平台和 DUT 在功能上都一致，并且将返回"OK"消息。
 ```
   task run();
     forever beging
@@ -291,9 +330,6 @@ Scoreboard是自检环境中的关键元素，它可以在功能级别验证设�
   endtask: run
 ```
 
-在这个过程中，我们有两个来自两个监视器的事务流，需要确保它们是同步的。通过使用 UVM FIFO，可以简单做到这一点。与port/export一样，我们使用uvm_tlm_analysis_fifo #(generic_transaction)实例化FIFO，它们已经实现了从monitor调用的相应write()函数。要访问其数据，我们只需从每个FIFO执行get()方法即可。
 
 
-为了验证的准确性，我们对于数据和指令选择了不同的测试方式，对于pc指针，由于需要验证冲突解决模块的准确性，我们需要给出实时的指针数据，从而验证CPU运行过程的正确性，如果按照指令顺序输出pc值，将导致跳转预测或是数据冲突过程中，理想CPU和DUT之间的运算差距，从而导致测试的失败。
 
-而对于数据，由于CPU需要保证指令执行的正确性，因此，在理想CPU中，我们可以直接进行指令的运算过程，并将结果传递给scoreboard。在scoreboard接收到输出结果后，并不直接进行结果正确性的验证，而是将其放置于队列中，在几个周期后来自DUT的结果完成后，从队列中将理想结果进行取出，并判断二者是否相等。可以认为，我们只在指令发射过程中检测CPU的时序特性，而在数据输出中，我们只检测结果的输出顺序以及其正确性。

@@ -88,8 +88,13 @@ class riscv_monitor_after extends uvm_monitor;
           rs1_cp:     coverpoint rv_tx_cg.rs1;
           rs2_cp:     coverpoint rv_tx_cg.rs2;
           rd_cp:     coverpoint rv_tx_cg.rd;
-    cross rs1_cp, rs2_cp, rd_cp;
+          instr_cp:     coverpoint rv_tx_cg.instr;
+          imm_cp:     coverpoint rv_tx_cg.imm;
+          imm_jal_cp:     coverpoint rv_tx_cg.imm_jal[20:12];
+          mem_rd_data_cp:     coverpoint rv_tx_cg.mem_rd_data;
+    cross rs1_cp, rs2_cp, rd_cp, instr_cp, imm_cp, imm_jal_cp, mem_rd_data_cp;
   endgroup: riscv_cg
+
 
   function new(string name, uvm_component parent);
     super.new(name, parent);
