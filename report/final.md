@@ -51,7 +51,7 @@ IF阶段为指令的发射级，同时也是整个流水线的起点。在我们
 
 #### dual_port bus
 在IF阶段，便需要设计和外部连接的接口。同时，考虑到指令ROM和RAM的相似性，决定为DMEM和IMEM设计相同的接口。因此，这一接口需要满足读操作和写操作的需求。然而，由于CPU并不会使用指令bus对于指令ROM进行写入，在IMEM中，其写操作结构会始终处于关闭状态。最终设计的接口如下所示：
-```
+```verilog
   // read interface
   logic  rd_req, rd_gnt;
   logic  [3:0]  rd_be;
@@ -82,7 +82,7 @@ MEM阶段负责CPU和内存之间的数据交互。在这一阶段中，需要�
 最终需要进行设计的部分便是CPU的主体结构——五级流水线。同时，考虑到流水线中需要和所有阶段的模块进行连接，因此选择在该模块中对先前所有的模块进行实例化。同时，也对于WB模块进行简单的实现。
 
 我们设计的流水线寄存器的结构如下所示：
-```
+```verilog
 module flopenrc 
 #(parameter WIDTH = 8) (
   input logic clk,
@@ -107,7 +107,7 @@ end
 
 下面给出一个流水线寄存器的实现实例：
 
-```
+```verilog
   flopenrc #(7) opcodeDE(clk,rst_n,stallDE,flushDE,opcodeD,opcodeE);
 ```
 
@@ -124,7 +124,7 @@ end
 #### 额外结构设计
 为了测试结构的简单，在指令ROM和数据RAM中，均没有对于总线延时这一参数进行实现。（在非测试模块中实现这一结构需要引入额外的随机结构或者只能做成固定延时设计，由于这样的结构实现起来较为复杂且存在较多的冗余代码，因此并没有在RAM结构和ROM结构中对于这一参数进行实际的实现。）
 实际对于request信号和grant信号，实现的代码如下所示：
-```
+```verilog
 assign instr_slave.rd_gnt = instr_slave.rd_req;
 assign instr_slave.wr_gnt = instr_slave.wr_req;
 ```
@@ -138,7 +138,7 @@ instruction rom用于存储即将被发射验证的指令序列，使用简单�
 由于指令序列全部储存在instr_rom中，因此tb_top模块不需要添加太多调试信息，只需要生成时钟信号并生成初始化信号即可，而在instr_rom中放置特定的指令序列，便可以进行最终的验证过程。
 
 在初步测试中，我们手工设置了一组具有数据冲突和循环跳转的指令序列，用来确定数据冲突和跳转冲突是否可以被正确处理，对应的指令序列如下所示，由于测试结果为较难进行分析的波形图，在这里便不再进行展示。
-```
+```verilog
   32'h00708093,   
   // addi x1,x1,7
   32'h00710113,   
@@ -195,7 +195,7 @@ instruction rom用于存储即将被发射验证的指令序列，使用简单�
 ##### Top
 在top模块中，我们实例化了CPU的对接IMEM和DMEM的总线接口instr_vif与mem_vif。并创建了控制用总线，以便在UVM各组件中传递时钟信号等控制信号：
 
-```
+```verilog
 
   control_if ctrl_vif();
   dualport_bus instr_vif();
@@ -212,7 +212,7 @@ instruction rom用于存储即将被发射验证的指令序列，使用简单�
 
 ```
 对于IMEM和DMEM，我们假设是绝对理想的，即能够立即反应读写的请求
-```
+```verilog
   assign instr_vif.rd_gnt = instr_vif.rd_req;
   assign instr_vif.wr_gnt = instr_vif.wr_req;
   assign mem_vif.rd_gnt = mem_vif.rd_req;
@@ -220,7 +220,7 @@ instruction rom用于存储即将被发射验证的指令序列，使用简单�
 ```
 
 设定了初始值，并在#20的时候完成rst_n操作 
-```
+```verilog
   initial begin
     ctrl_vif.clk <= 1'b1;
     ctrl_vif.i_boot_addr <= 32'h0000_0000;
@@ -245,7 +245,7 @@ instruction rom用于存储即将被发射验证的指令序列，使用简单�
 
 通过添加Constraint，可以生成多种针对性的sequence。如果想要测试高冲突，可以设置rs1，rs2，rd在一个窄范围，如[0:3]；如果想要测试读写，可以提高读写部分的指令概率；如果想要测试极限跳转和跳转后溢出，可以对imm限定一个较极限的范围。
 
-```
+```verilog
 typedef enum bit[3:0] {UNKNOWN_INSTR, AND, OR, XOR, ADD, SUB, ANDI, ORI, XORI, SW, LW, BEQ, JAL} instr_e;
   rand instr_e instr;
   rand bit [11:0] imm;
@@ -261,7 +261,7 @@ typedef enum bit[3:0] {UNKNOWN_INSTR, AND, OR, XOR, ADD, SUB, ANDI, ORI, XORI, S
 ```
 
 对于DMEM，主要提供了一个32位随机数rd_data作为从某个DMEM地址上读取的数据。此外，还要观察的对DMEM的读写正确性，此处包括了DMEM总线上读写的req请求信号，读写的地址addr以及写的数据data。针对读写，分别对两个操作的输出创建了结构体。
-```
+```verilog
 typedef struct { 
   bit req;
   bit [31:0] addr;
@@ -444,4 +444,81 @@ Scoreboard是自检环境中的关键元素，它可以在功能级别验证设�
 
 #### 覆盖率
 
+#### 测试中出现的问题及修正过程
+##### ram时序问题
+由于最初并未对RAM的特性进行分析，最早的ram实现是寄存器式的，因此其读写之间存在一个时钟周期的间隔。而显然，在五级流水线CPU中，每级流水线之间的延时仅为一个周期，如此长的时间间隔无法让CPU正常完成对通用寄存器数据的读取和写入。例如在ID阶段中，在时钟上升沿后，从流水线寄存器中接收到需要处理的指令，首先使用组合逻辑来进行指令的译码，而译码后，才能够获得该指令所需的通用寄存器地址。而这一地址所对应的数据需要在该周期的剩余时间内完成准备并传递到流水线寄存器的左端。否则EX阶段将无法读取到来自寄存器的数据。因此，使用寄存器结构实现通用寄存器要么延长指令运算的周期，要么导致最终的结果错误。
+
+因此，最终使用组合逻辑对于内部的通用寄存器进行实现，从而解决了这一问题。读取中的组合逻辑代码如下：
+
+```
+always_comb begin
+  if (~rst_n) begin
+    data_ram_cell = '{default:'0};
+    o_rdata1 = 31'b0;
+    o_rdata2 = 31'b0;
+  end else begin
+    if (i_we) begin
+      data_ram_cell[i_waddr] = i_wdata;
+    end
+    o_rdata1 = data_ram_cell[i_raddr1];
+    o_rdata2 = data_ram_cell[i_raddr2];
+  end
+end
+```
+
+##### hazard模块的逻辑判断问题
+在所有通用寄存器中，0号寄存器是最为特殊的一个，由于其中的数据永远为0且在任何状态下不会被写入，因此需要对这一寄存器进行特殊处理。即，向0号寄存器中进行写入的操作不会引发数据冲突。同时，由于在流水线寄存器中的清零操作会将流水线寄存器中的寄存器地址设置为0，因此，如果对于0号寄存器检验数据冲突，将会导致整个流水线的停摆。在CPU的初始实现过程中，便出现了流水线停摆的情况。最初的实现代码如下：
+```verilog
+  end else if ((i_src1_reg_en && i_src1_reg_addr != 5'b00000) ||
+               (i_src2_reg_en && i_src2_reg_addr != 5'b00000)) begin
+    if ((i_dst_reg_addrE == i_src1_reg_addr) || (i_dst_reg_addrE == i_src2_reg_addr)) begin
+      // do something
+    end else if ((i_dst_reg_addrM == i_src1_reg_addr) || (i_dst_reg_addrM == i_src2_reg_addr)) begin
+      // do something
+    end else if ((i_dst_reg_addrB == i_src1_reg_addr) || (i_dst_reg_addrB == i_src2_reg_addr)) begin
+      // do something
+    end else begin
+      // do something
+    end
+```
+
+通过UVM，我们发现，对于 add sx s0 sy 的指令类型，将会引发流水线停顿的严重问题。由于sx为正常的存储器单元，因此其存在将使此if生效，而在随后的检验过程中，由于src2_reg为0号寄存器，若冲突存在，将执行冲突解决操作，使得流水线寄存器中的目的地址变为0。由此，便导致了流水线的停顿。
+
+而最终，我们重新梳理了代码逻辑，最终得到的代码如下所示：
+```verilog
+  end else if (i_src1_reg_en && i_src1_reg_addr != 5'b00000) begin
+    if (i_dst_reg_enE && i_dst_reg_addrE == i_src1_reg_addr) begin
+      pipeline_stall = 4'b0111;
+    end else if (i_dst_reg_enM && i_dst_reg_addrM == i_src1_reg_addr) begin
+      pipeline_stall = 4'b0111;
+    end else if (i_dst_reg_enB && i_dst_reg_addrB == i_src1_reg_addr) begin
+      pipeline_stall = 4'b0111;
+    end else if (i_src2_reg_en && i_src2_reg_addr != 5'b00000) begin
+      if (i_dst_reg_enE && i_dst_reg_addrE == i_src2_reg_addr) begin
+        pipeline_stall = 4'b0111;
+      end else if (i_dst_reg_enM && i_dst_reg_addrM == i_src2_reg_addr) begin
+        pipeline_stall = 4'b0111;
+      end else if (i_dst_reg_enB && i_dst_reg_addrB == i_src2_reg_addr) begin
+        pipeline_stall = 4'b0111;
+      end else begin
+        pipeline_stall = 4'b1111;
+      end
+    end else begin
+      pipeline_stall = 4'b1111;
+    end
+  end else if (i_src2_reg_en && i_src2_reg_addr != 5'b00000) begin
+    if (i_dst_reg_enE && i_dst_reg_addrE == i_src2_reg_addr) begin
+      pipeline_stall = 4'b0111;
+    end else if (i_dst_reg_enM && i_dst_reg_addrM == i_src2_reg_addr) begin
+      pipeline_stall = 4'b0111;
+    end else if (i_dst_reg_enB && i_dst_reg_addrB == i_src2_reg_addr) begin
+      pipeline_stall = 4'b0111;
+    end else begin
+      pipeline_stall = 4'b1111;
+    end
+```
+
+虽然上述代码较为冗长，但避免了由于零寄存器这一特殊寄存器导致的特殊问题。
+
+而对于向零寄存器的写入，我们并没有类似读取过程进行跳过，而是和其他指令一样使用冲突等待，在解决冲突得到运算结果后，再将计算数据废弃掉。因此，这一类指令也可以用作该cpu中的fence类指令，即在指令执行前先将可能存在的数据冲突进行解决，且不会读入可能存在的错误结果。
 
