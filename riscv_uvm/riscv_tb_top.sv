@@ -53,6 +53,10 @@ module riscv_tb_top;
   assign mem_vif.rd_gnt = mem_vif.rd_req;
   assign mem_vif.wr_gnt = mem_vif.wr_req;
 
+  always_ff @ (mem_vif.rd_addr) begin
+    mem_vif.rd_data = $random(mem_vif.rd_addr);
+  end
+
   initial begin
     #10;
     ctrl_vif.rst_n = 1'b0;

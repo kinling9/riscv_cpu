@@ -93,7 +93,7 @@ class riscv_driver extends uvm_driver#(riscv_transaction);
         //`uvm_info("rv_driver", $sformatf("instr:%s, rs2:%x, rs1:%x, rd:%x, imm:%x, imm_jal:%x, instr_vif.rd_data:%x", rv_tx.instr.name(), rv_tx.rs2, rv_tx.rs1, rv_tx.rd, rv_tx.imm, rv_tx.imm_jal, instr_vif.rd_data), UVM_LOW);
         `uvm_info("rv_driver", $sformatf("instr_vif.rd_data:%x", instr_vif.rd_data), UVM_LOW);
 
-        mem_vif.rd_data = rv_tx.mem_rd_data;
+        // mem_vif.rd_data = rv_tx.mem_rd_data;
 
         seq_item_port.item_done();
       end
