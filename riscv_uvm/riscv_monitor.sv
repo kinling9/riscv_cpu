@@ -397,7 +397,6 @@ class riscv_monitor_after extends uvm_monitor;
         // reg_ram[rv_tx.rd] = mem_vif.rd_data;
         mem_rd_delay[4].addr[1:0] = 2'b00;
         reg_ram[rv_tx.rd] = mem_rd_delay[4].addr + 1;
-        reg_ram[0] = 0;
         mem_rd_delay[4].req = 1;
         `uvm_info("rv_mon_after read RAM", $sformatf("rs1_data: %x, imm_expand: %d,",  reg_ram[rv_tx.rs1], $signed(imm_expand)), UVM_LOW);
       end
@@ -416,6 +415,7 @@ class riscv_monitor_after extends uvm_monitor;
         `uvm_info("rv_mon_after", "UNKNOWN_INSTR", UVM_LOW);
       end
     endcase
+    reg_ram[0] = 0;
   endfunction: execute
 
   virtual function void push_rd_history();
