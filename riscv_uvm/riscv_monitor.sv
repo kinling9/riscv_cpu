@@ -60,9 +60,9 @@ class riscv_monitor_after extends uvm_monitor;
   virtual dualport_bus instr_vif;
   virtual dualport_bus mem_vif;
 
+  riscv_transaction rv_tx;
   riscv_transaction rv_tx_1;
   riscv_transaction rv_tx_2;
-  riscv_transaction rv_tx_3;
 
   logic [31:0] reg_ram [0:31];
 
@@ -243,9 +243,9 @@ class riscv_monitor_after extends uvm_monitor;
           rv_tx.mem_rd = mem_rd_delay[0];
         end
 
-        if (mem_rd_delay[1].req == 1) begin
-          reg_ram[mem_rd_delay[1].reg_rd] = mem_vif.rd_data;
-        end
+        // if (mem_rd_delay[1].req == 1) begin
+        //   reg_ram[mem_rd_delay[1].reg_rd] = mem_vif.rd_data;
+        // end
 
 
         rv_tx_cg = rv_tx;
@@ -407,9 +407,9 @@ class riscv_monitor_after extends uvm_monitor;
       LW: begin
         imm_expand[1:0] = 2'b00;
         mem_rd_delay[4].addr = reg_ram[rv_tx.rs1] + imm_expand;
-        //reg_ram[rv_tx.rd] = mem_vif.rd_data;
+        reg_ram[rv_tx.rd] = mem_vif.rd_data;
         mem_rd_delay[4].req = 1;
-        mem_rd_delay[4].reg_rd = rv_tx.rd;
+        //mem_rd_delay[4].reg_rd = rv_tx.rd;
         //`uvm_info("rv_mon_after read RAM", $sformatf("rs1_data: %x, imm_expand: %d,",  reg_ram[rv_tx.rs1], $signed(imm_expand)), UVM_LOW);
       end
       BEQ: begin
