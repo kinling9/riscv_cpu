@@ -131,14 +131,14 @@ class riscv_monitor_after extends uvm_monitor;
         rv_tx_init();
         
 				instr_decode();
-        
+         
         // `uvm_info("rv_mon_after", rv_tx.sprint(), UVM_LOW);
         
         // `uvm_info("rv_mon_after", $sformatf("instr:%s, rs2:%d, rs1:%d, rd:%d, imm:%x, imm_jal:%x, instr_vif.rd_data:%x", rv_tx.instr.name(), rv_tx.rs2, rv_tx.rs1, rv_tx.rd, rv_tx.imm, {rv_tx.imm_jal, rv_tx.imm[11:1]}, instr_vif.rd_data), UVM_LOW);        
         
         // Excecute the instruction  
-        //if (counter_jal_beq === 0 && (counter_hazard === 0 || counter_hazard === 1)) begin 
-        $display("start accept_after_hazard: %d", accept_after_hazard);
+        // if (counter_jal_beq === 0 && (counter_hazard === 0 || counter_hazard === 1)) begin 
+        // $display("start accept_after_hazard: %d", accept_after_hazard);
         if (counter_jal_beq === 0 && (counter_hazard === 0 || accept_after_hazard === 1)) begin
 
           if (accept_after_hazard === 1) begin
@@ -157,6 +157,9 @@ class riscv_monitor_after extends uvm_monitor;
 
           flush = 0;
           push_rd_history();
+          foreach (rd_history[i]) begin
+            $display("%d", rd_history[i]);
+          end 
           for (int i = 3; i > -1; --i) begin
             if ((!(rd_history[i] === 0)) && 
                 (rv_tx.rs1 === rd_history[i] || 
@@ -185,7 +188,7 @@ class riscv_monitor_after extends uvm_monitor;
             if (i < flush) begin
               rd_history[i] = 0;
             end
-            // $display("%d", rd_history[i]);
+            //$display("%d", rd_history[i]);
           end           
           
           delay_mem();
@@ -212,6 +215,7 @@ class riscv_monitor_after extends uvm_monitor;
         end else if (!(counter_jal_beq === 0)) begin 
           --counter_jal_beq;
           delay_mem();
+          push_rd_history();
           rv_tx.pc += 4;
           `uvm_info("rv_mon_after", "REJECT because of previous JAL or BEQ!", UVM_LOW);
           change_pc_jal_beq = 0;
@@ -221,7 +225,7 @@ class riscv_monitor_after extends uvm_monitor;
           end
         end
 
-        $display("end accept_after_hazard: %d", accept_after_hazard);
+        // $display("end accept_after_hazard: %d", accept_after_hazard);
         `uvm_info("rv_mon_after", 
                   $sformatf("cur bubble: %d, potential bubble: %d", 
                   counter_hazard, counter_hazard_nxt), UVM_LOW);

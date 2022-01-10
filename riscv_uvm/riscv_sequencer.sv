@@ -22,9 +22,9 @@ class riscv_transaction extends uvm_sequence_item;
   constraint my_constraint {
     instr inside {[AND: JAL]};
     imm_jal inside {[0: 9'b1_1111_1111]};
-    // rs1 inside {[0:3]};
-    // rs2 inside {[0:3]};
-    // rd inside {[0:3]};
+    // rs1 inside {[1:3]};
+    // rs2 inside {[1:3]};
+    // rd inside {[1:3]};
   }
   bit [31:0] pc;
 
@@ -65,7 +65,7 @@ class riscv_sequence extends uvm_sequence#(riscv_transaction);
   task body();
     riscv_transaction rv_tx;
     
-    repeat(20) begin
+    repeat(1000) begin
       rv_tx = riscv_transaction::type_id::create(.name("rv_tx"), .contxt(get_full_name()));
 
       start_item(rv_tx);
