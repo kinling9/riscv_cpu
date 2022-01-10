@@ -73,7 +73,6 @@ class riscv_monitor_after extends uvm_monitor;
   integer counter_hazard;
   integer counter_hazard_nxt;
   integer counter_jal_beq;
-  integer flush;
   bit change_pc_jal_beq;
   bit accept_after_hazard; 
   // here accept_after_hazard act as enable pc+=4 after hazard, 
@@ -116,7 +115,7 @@ class riscv_monitor_after extends uvm_monitor;
     counter_jal_beq = 0;
     change_pc_jal_beq = 0;
     accept_after_hazard = 0;
-    flush = 0;
+    
     foreach (reg_ram[i]) begin
       reg_ram[i] = 0;
     end
@@ -155,7 +154,6 @@ class riscv_monitor_after extends uvm_monitor;
             --counter_hazard;
           end */       
 
-          flush = 0;
           push_rd_history();
           foreach (rd_history[i]) begin
             $display("%d", rd_history[i]);
@@ -167,13 +165,16 @@ class riscv_monitor_after extends uvm_monitor;
               if (counter_hazard === 0) begin
                 accept_after_hazard = 1;
                 counter_hazard = i + 1;
-                rd_history[i] = 0;
-                flush = i;
                 `uvm_info("rv_mon_after", 
                         $sformatf("this instr causes HAZARD!"), UVM_LOW);
               end else if (i === 2) begin 
                 accept_after_hazard = 0;
                 counter_hazard_nxt = i + 1;
+                `uvm_info("rv_mon_after", 
+                        $sformatf("accept HAZARD after HAZARD!"), UVM_LOW);
+              end else if (i === 1 && counter_hazard < 2) begin 
+                accept_after_hazard = 0;
+                counter_hazard_nxt = i;
                 `uvm_info("rv_mon_after", 
                         $sformatf("accept HAZARD after HAZARD!"), UVM_LOW);
               end
@@ -184,12 +185,7 @@ class riscv_monitor_after extends uvm_monitor;
             end
           end     
 
-          foreach (rd_history[i]) begin
-            if (i < flush) begin
-              rd_history[i] = 0;
-            end
-            //$display("%d", rd_history[i]);
-          end           
+          
           
           delay_mem();
           
