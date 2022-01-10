@@ -120,6 +120,7 @@ class riscv_monitor_after extends uvm_monitor;
     
     foreach (reg_ram[i]) begin
       reg_ram[i] = 0;
+    //  $display("%x", reg_ram[i]);
     end
     rv_tx = riscv_transaction::type_id::create
       (.name("rv_tx"), .contxt(get_full_name()));
@@ -348,6 +349,7 @@ class riscv_monitor_after extends uvm_monitor;
       end
       J_TYPE : begin 
         rv_tx.imm[11:1] = {instr_vif.rd_data[20], instr_vif.rd_data[30:21]};
+        rv_tx.rd = instr_vif.rd_data[11:7];
         rv_tx.imm_jal[20:12] = {instr_vif.rd_data[31], instr_vif.rd_data[19:12]};
         rv_tx.imm_jal[31:21] = {12{instr_vif.rd_data[31]}};
       end
@@ -388,12 +390,14 @@ class riscv_monitor_after extends uvm_monitor;
         mem_wr_delay[4].data = reg_ram[rv_tx.rs2];
         mem_wr_delay[4].addr = reg_ram[rv_tx.rs1] + imm_expand;
         mem_wr_delay[4].req = 1;
+        `uvm_info("rv_mon_after write RAM", $sformatf("rs2_data: %x, rs1_dara: %x, imm_expand: %d,",  reg_ram[rv_tx.rs2], reg_ram[rv_tx.rs1], $signed(imm_expand)), UVM_LOW);
       end
       LW: begin
         imm_expand[1:0] = 2'b00;
-        reg_ram[rv_tx.rd] = mem_vif.rd_data;
         mem_rd_delay[4].addr = reg_ram[rv_tx.rs1] + imm_expand;
+        reg_ram[rv_tx.rd] = mem_vif.rd_data;
         mem_rd_delay[4].req = 1;
+        `uvm_info("rv_mon_after read RAM", $sformatf("rs1_data: %x, imm_expand: %d,",  reg_ram[rv_tx.rs1], $signed(imm_expand)), UVM_LOW);
       end
       BEQ: begin
         if (reg_ram[rv_tx.rs1] === reg_ram[rv_tx.rs2]) begin
@@ -403,6 +407,7 @@ class riscv_monitor_after extends uvm_monitor;
       end
       JAL: begin
         beq_jal_pc = rv_tx.pc + {rv_tx.imm_jal, rv_tx.imm};
+        reg_ram[rv_tx.rd] = rv_tx.pc + 4;
         counter_jal_beq = 2;
       end
       default: begin

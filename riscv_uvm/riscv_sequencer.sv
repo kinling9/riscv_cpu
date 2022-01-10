@@ -20,11 +20,11 @@ class riscv_transaction extends uvm_sequence_item;
   rand bit [4:0] rs2;
   rand bit [4:0] rd;
   constraint my_constraint {
-    instr inside {[AND: JAL]};
+    instr inside {[SW: LW]};
     imm_jal inside {[0: 9'b1_1111_1111]};
-    // rs1 inside {[1:3]};
-    // rs2 inside {[1:3]};
-    // rd inside {[1:3]};
+    rs1 inside {[1:3]};
+    rs2 inside {[1:3]};
+    rd inside {[1:3]};
   }
   bit [31:0] pc;
 
