@@ -67,7 +67,7 @@ class riscv_monitor_after extends uvm_monitor;
   logic [31:0] reg_ram [0:31];
 
   bit [4:0] rd_history[0:3] = '{0,0,0,0};
-  mem_rd_t mem_rd_delay[0:4] = '{'{0,0},'{0,0},'{0,0},'{0,0},'{0,0}};
+  mem_rd_t mem_rd_delay[0:4] = '{'{0,0,0},'{0,0,0},'{0,0,0},'{0,0,0},'{0,0,0}};
   mem_wr_t mem_wr_delay[0:4] = '{'{0,0,0},'{0,0,0},'{0,0,0},'{0,0,0},'{0,0,0}};
   integer counter_hazard;
   integer counter_hazard_nxt;
@@ -435,7 +435,7 @@ class riscv_monitor_after extends uvm_monitor;
     mem_rd_delay[1] = mem_rd_delay[2];
     mem_rd_delay[2] = mem_rd_delay[3];
     mem_rd_delay[3] = mem_rd_delay[4];
-    mem_rd_delay[4] = '{0,0};
+    mem_rd_delay[4] = '{0,0,0};
 
     mem_wr_delay[0] = mem_wr_delay[1];
     mem_wr_delay[1] = mem_wr_delay[2];
@@ -447,7 +447,7 @@ class riscv_monitor_after extends uvm_monitor;
   virtual function void half_delay();
     mem_rd_delay[0] = mem_rd_delay[1];
     mem_rd_delay[1] = mem_rd_delay[2];
-    mem_rd_delay[2] = '{0,0};
+    mem_rd_delay[2] = '{0,0,0};
 
     mem_wr_delay[0] = mem_wr_delay[1];
     mem_wr_delay[1] = mem_wr_delay[2];
