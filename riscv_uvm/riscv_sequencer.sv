@@ -4,6 +4,7 @@ typedef enum bit[3:0] {UNKNOWN_INSTR, AND, OR, XOR, ADD, SUB, ANDI, ORI, XORI, S
 typedef struct { 
   bit req;
   bit [31:0] addr;
+  bit [5:0] reg_rd;
 } mem_rd_t;
 
 typedef struct { // 
@@ -20,11 +21,12 @@ class riscv_transaction extends uvm_sequence_item;
   rand bit [4:0] rs2;
   rand bit [4:0] rd;
   constraint my_constraint {
-    instr inside {[SW: LW]};
+    instr inside {[LW: LW]};
     imm_jal inside {[0: 9'b1_1111_1111]};
     rs1 inside {[1:3]};
     rs2 inside {[1:3]};
     rd inside {[1:3]};
+    imm == 1;
   }
   bit [31:0] pc;
 
@@ -49,6 +51,7 @@ class riscv_transaction extends uvm_sequence_item;
     `uvm_field_int(mem_rd_data, UVM_ALL_ON)
     `uvm_field_int(mem_rd.req, UVM_ALL_ON)
     `uvm_field_int(mem_rd.addr, UVM_ALL_ON)
+    `uvm_field_int(mem_rd.reg_rd, UVM_ALL_ON)
     `uvm_field_int(mem_wr.req, UVM_ALL_ON)
     `uvm_field_int(mem_wr.data, UVM_ALL_ON)
     `uvm_field_int(mem_wr.addr, UVM_ALL_ON)
@@ -65,7 +68,7 @@ class riscv_sequence extends uvm_sequence#(riscv_transaction);
   task body();
     riscv_transaction rv_tx;
     
-    repeat(1000) begin
+    repeat(20) begin
       rv_tx = riscv_transaction::type_id::create(.name("rv_tx"), .contxt(get_full_name()));
 
       start_item(rv_tx);

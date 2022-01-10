@@ -60,12 +60,14 @@ class riscv_monitor_after extends uvm_monitor;
   virtual dualport_bus instr_vif;
   virtual dualport_bus mem_vif;
 
-  riscv_transaction rv_tx;
+  riscv_transaction rv_tx_1;
+  riscv_transaction rv_tx_2;
+  riscv_transaction rv_tx_3;
 
   logic [31:0] reg_ram [0:31];
 
   bit [4:0] rd_history[0:3] = '{0,0,0,0};
-  mem_rd_t mem_rd_delay[0:4] = '{'{0,0},'{0,0},'{0,0},'{0,0},'{0,0}};
+  mem_rd_t mem_rd_delay[0:4] = '{'{0,0,0},'{0,0,0},'{0,0,0},'{0,0,0},'{0,0,0}};
   mem_wr_t mem_wr_delay[0:4] = '{'{0,0,0},'{0,0,0},'{0,0,0},'{0,0,0},'{0,0,0}};
   integer counter_hazard;
   integer counter_hazard_nxt;
@@ -124,6 +126,10 @@ class riscv_monitor_after extends uvm_monitor;
     end
     rv_tx = riscv_transaction::type_id::create
       (.name("rv_tx"), .contxt(get_full_name()));
+    rv_tx_1 = riscv_transaction::type_id::create
+      (.name("rv_tx_1"), .contxt(get_full_name()));
+    rv_tx_2 = riscv_transaction::type_id::create
+      (.name("rv_tx_2"), .contxt(get_full_name()));
 
     #30;
     forever begin
@@ -237,12 +243,18 @@ class riscv_monitor_after extends uvm_monitor;
           rv_tx.mem_rd = mem_rd_delay[0];
         end
 
+        if (mem_rd_delay[1].req == 1) begin
+          reg_ram[mem_rd_delay[1].reg_rd] = mem_vif.rd_data;
+        end
+
 
         rv_tx_cg = rv_tx;
 
         //Coverage
         riscv_cg.sample();
-
+        for (int i = 1; i < 4; ++i) begin
+          $display("%d: %x", i, reg_ram[i]);
+        end
         //Send the transaction to the analysis port
         //`uvm_info("rv_driver", rv_tx.sprint(), UVM_LOW);
 
@@ -390,14 +402,15 @@ class riscv_monitor_after extends uvm_monitor;
         mem_wr_delay[4].data = reg_ram[rv_tx.rs2];
         mem_wr_delay[4].addr = reg_ram[rv_tx.rs1] + imm_expand;
         mem_wr_delay[4].req = 1;
-        `uvm_info("rv_mon_after write RAM", $sformatf("rs2_data: %x, rs1_dara: %x, imm_expand: %d,",  reg_ram[rv_tx.rs2], reg_ram[rv_tx.rs1], $signed(imm_expand)), UVM_LOW);
+        //`uvm_info("rv_mon_after write RAM", $sformatf("rs2_data: %x, rs1_dara: %x, imm_expand: %d,",  reg_ram[rv_tx.rs2], reg_ram[rv_tx.rs1], $signed(imm_expand)), UVM_LOW);
       end
       LW: begin
         imm_expand[1:0] = 2'b00;
         mem_rd_delay[4].addr = reg_ram[rv_tx.rs1] + imm_expand;
-        reg_ram[rv_tx.rd] = mem_vif.rd_data;
+        //reg_ram[rv_tx.rd] = mem_vif.rd_data;
         mem_rd_delay[4].req = 1;
-        `uvm_info("rv_mon_after read RAM", $sformatf("rs1_data: %x, imm_expand: %d,",  reg_ram[rv_tx.rs1], $signed(imm_expand)), UVM_LOW);
+        mem_rd_delay[4].reg_rd = rv_tx.rd;
+        //`uvm_info("rv_mon_after read RAM", $sformatf("rs1_data: %x, imm_expand: %d,",  reg_ram[rv_tx.rs1], $signed(imm_expand)), UVM_LOW);
       end
       BEQ: begin
         if (reg_ram[rv_tx.rs1] === reg_ram[rv_tx.rs2]) begin
@@ -428,7 +441,7 @@ class riscv_monitor_after extends uvm_monitor;
     mem_rd_delay[1] = mem_rd_delay[2];
     mem_rd_delay[2] = mem_rd_delay[3];
     mem_rd_delay[3] = mem_rd_delay[4];
-    mem_rd_delay[4] = '{0,0};
+    mem_rd_delay[4] = '{0,0,0};
 
     mem_wr_delay[0] = mem_wr_delay[1];
     mem_wr_delay[1] = mem_wr_delay[2];
@@ -440,7 +453,7 @@ class riscv_monitor_after extends uvm_monitor;
   virtual function void half_delay();
     mem_rd_delay[0] = mem_rd_delay[1];
     mem_rd_delay[1] = mem_rd_delay[2];
-    mem_rd_delay[2] = '{0,0};
+    mem_rd_delay[2] = '{0,0,0};
 
     mem_wr_delay[0] = mem_wr_delay[1];
     mem_wr_delay[1] = mem_wr_delay[2];
