@@ -5,6 +5,9 @@ module riscv_hazard(
   input logic i_src2_reg_en,
   input logic [4:0] i_src1_reg_addr,
   input logic [4:0] i_src2_reg_addr,
+  input logic i_dst_reg_enE,
+  input logic i_dst_reg_enM,
+  input logic i_dst_reg_enB,
   input logic [4:0] i_dst_reg_addrE,
   input logic [4:0] i_dst_reg_addrM,
   input logic [4:0] i_dst_reg_addrB,
@@ -34,23 +37,23 @@ always_comb begin
     pipeline_flush = 4'b1100;
     stall_conflict = 1'b1;
   end else if (i_src1_reg_en && i_src1_reg_addr != 5'b00000) begin
-    if (i_dst_reg_addrE == i_src1_reg_addr) begin
+    if (i_dst_reg_enE && i_dst_reg_addrE == i_src1_reg_addr) begin
       pipeline_flush = 4'b0100;
       stall_conflict = 1'b0;
-    end else if (i_dst_reg_addrM == i_src1_reg_addr) begin
+    end else if (i_dst_reg_enM && i_dst_reg_addrM == i_src1_reg_addr) begin
       pipeline_flush = 4'b0100;
       stall_conflict = 1'b0;
-    end else if (i_dst_reg_addrB == i_src1_reg_addr) begin
+    end else if (i_dst_reg_enB && i_dst_reg_addrB == i_src1_reg_addr) begin
       pipeline_flush = 4'b0100;
       stall_conflict = 1'b0;
     end else if (i_src2_reg_en && i_src2_reg_addr != 5'b00000) begin
-      if (i_dst_reg_addrE == i_src2_reg_addr) begin
+      if (i_dst_reg_enE && i_dst_reg_addrE == i_src2_reg_addr) begin
         pipeline_flush = 4'b0100;
         stall_conflict = 1'b0;
-      end else if (i_dst_reg_addrM == i_src2_reg_addr) begin
+      end else if (i_dst_reg_enM && i_dst_reg_addrM == i_src2_reg_addr) begin
         pipeline_flush = 4'b0100;
         stall_conflict = 1'b0;
-      end else if (i_dst_reg_addrB == i_src2_reg_addr) begin
+      end else if (i_dst_reg_enB && i_dst_reg_addrB == i_src2_reg_addr) begin
         pipeline_flush = 4'b0100;
         stall_conflict = 1'b0;
       end else begin
@@ -62,13 +65,13 @@ always_comb begin
       stall_conflict = 1'b1;
     end
   end else if (i_src2_reg_en && i_src2_reg_addr != 5'b00000) begin
-    if (i_dst_reg_addrE == i_src2_reg_addr) begin
+    if (i_dst_reg_enE && i_dst_reg_addrE == i_src2_reg_addr) begin
       pipeline_flush = 4'b0100;
       stall_conflict = 1'b0;
-    end else if (i_dst_reg_addrM == i_src2_reg_addr) begin
+    end else if (i_dst_reg_enM && i_dst_reg_addrM == i_src2_reg_addr) begin
       pipeline_flush = 4'b0100;
       stall_conflict = 1'b0;
-    end else if (i_dst_reg_addrB == i_src2_reg_addr) begin
+    end else if (i_dst_reg_enB && i_dst_reg_addrB == i_src2_reg_addr) begin
       pipeline_flush = 4'b0100;
       stall_conflict = 1'b0;
     end else begin
@@ -92,18 +95,18 @@ always_comb begin
     pipeline_stall = 4'b0001;
     stall_bus = 0;
   end else if (i_src1_reg_en && i_src1_reg_addr != 5'b00000) begin
-    if (i_dst_reg_addrE == i_src1_reg_addr) begin
+    if (i_dst_reg_enE && i_dst_reg_addrE == i_src1_reg_addr) begin
       pipeline_stall = 4'b0111;
-    end else if (i_dst_reg_addrM == i_src1_reg_addr) begin
+    end else if (i_dst_reg_enM && i_dst_reg_addrM == i_src1_reg_addr) begin
       pipeline_stall = 4'b0111;
-    end else if (i_dst_reg_addrB == i_src1_reg_addr) begin
+    end else if (i_dst_reg_enB && i_dst_reg_addrB == i_src1_reg_addr) begin
       pipeline_stall = 4'b0111;
     end else if (i_src2_reg_en && i_src2_reg_addr != 5'b00000) begin
-      if (i_dst_reg_addrE == i_src2_reg_addr) begin
+      if (i_dst_reg_enE && i_dst_reg_addrE == i_src2_reg_addr) begin
         pipeline_stall = 4'b0111;
-      end else if (i_dst_reg_addrM == i_src2_reg_addr) begin
+      end else if (i_dst_reg_enM && i_dst_reg_addrM == i_src2_reg_addr) begin
         pipeline_stall = 4'b0111;
-      end else if (i_dst_reg_addrB == i_src2_reg_addr) begin
+      end else if (i_dst_reg_enB && i_dst_reg_addrB == i_src2_reg_addr) begin
         pipeline_stall = 4'b0111;
       end else begin
         pipeline_stall = 4'b1111;
@@ -112,11 +115,11 @@ always_comb begin
       pipeline_stall = 4'b1111;
     end
   end else if (i_src2_reg_en && i_src2_reg_addr != 5'b00000) begin
-    if (i_dst_reg_addrE == i_src2_reg_addr) begin
+    if (i_dst_reg_enE && i_dst_reg_addrE == i_src2_reg_addr) begin
       pipeline_stall = 4'b0111;
-    end else if (i_dst_reg_addrM == i_src2_reg_addr) begin
+    end else if (i_dst_reg_enM && i_dst_reg_addrM == i_src2_reg_addr) begin
       pipeline_stall = 4'b0111;
-    end else if (i_dst_reg_addrB == i_src2_reg_addr) begin
+    end else if (i_dst_reg_enB && i_dst_reg_addrB == i_src2_reg_addr) begin
       pipeline_stall = 4'b0111;
     end else begin
       pipeline_stall = 4'b1111;
