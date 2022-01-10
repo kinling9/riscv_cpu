@@ -33,7 +33,8 @@ assign o_bus_stall = (mem_master.rd_req & ~mem_master.rd_gnt) | (mem_master.wr_r
 // 总线无响应信号，其他组件在接收到该信号后需要停止数据的传递过程
 
 assign addr_bus = {i_addr[31:2], 2'b00};
-assign addr_lsb = i_addr[1:0];
+// assign addr_lsb = i_addr[1:0];
+assign addr_lsb = 2'b00;
 
 assign mem_master.rd_req = i_re;
 assign mem_master.rd_be = i_re ? byte_enable : 4'h0;
@@ -131,24 +132,24 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 
 always_comb begin
-  if(re_latch) begin
+  if(i_re) begin
     if(~o_bus_stall_latch)
       case(i_funct3)
-        3'b000: if (addr_lsb==2'b00) o_rdata <= {{24{rdata[7]}}, rdata[7:0]};
-                else if(addr_lsb==2'b01) o_rdata <= {{24{rdata[15]}}, rdata[15:8]};
-                else if(addr_lsb==2'b10) o_rdata <= {{24{rdata[23]}}, rdata[23:16]};
+        3'b000: if (addr_lsb==2'b00) o_rdata = {{24{rdata[7]}}, rdata[7:0]};
+                else if(addr_lsb==2'b01) o_rdata = {{24{rdata[15]}}, rdata[15:8]};
+                else if(addr_lsb==2'b10) o_rdata = {{24{rdata[23]}}, rdata[23:16]};
                 else o_rdata <= {{24{rdata[31]}}, rdata[31:24]};
-        3'b100: if (addr_lsb==2'b00) o_rdata <= {24'b0, rdata[7:0]};
-                else if(addr_lsb==2'b01) o_rdata <= {24'b0, rdata[15: 8]};
-                else if(addr_lsb==2'b10) o_rdata <= {24'b0, rdata[23:16]};
+        3'b100: if (addr_lsb==2'b00) o_rdata = {24'b0, rdata[7:0]};
+                else if(addr_lsb==2'b01) o_rdata = {24'b0, rdata[15: 8]};
+                else if(addr_lsb==2'b10) o_rdata = {24'b0, rdata[23:16]};
                 else o_rdata <= {24'b0, rdata[31:24]};
-        3'b001: if (addr_lsb==2'b00) o_rdata <= {{16{rdata[15]}}, rdata[15:0]};
-                else if(addr_lsb==2'b10) o_rdata <= {{16{rdata[31]}}, rdata[31:16]};
+        3'b001: if (addr_lsb==2'b00) o_rdata = {{16{rdata[15]}}, rdata[15:0]};
+                else if(addr_lsb==2'b10) o_rdata = {{16{rdata[31]}}, rdata[31:16]};
                 else o_rdata <= 0;
-        3'b101: if (addr_lsb==2'b00) o_rdata <= {16'b0, rdata[15:0]};
-                else if(addr_lsb==2'b10) o_rdata <= {16'b0, rdata[31:16]};
+        3'b101: if (addr_lsb==2'b00) o_rdata = {16'b0, rdata[15:0]};
+                else if(addr_lsb==2'b10) o_rdata = {16'b0, rdata[31:16]};
                 else o_rdata <= 0;
-        3'b010: if(addr_lsb==2'b00) o_rdata <= rdata;
+        3'b010: if(addr_lsb==2'b00) o_rdata = rdata;
                 else o_rdata <= 0;
         default: o_rdata <= 0;
       endcase
