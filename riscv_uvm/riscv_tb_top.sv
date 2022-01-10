@@ -31,9 +31,9 @@ module riscv_tb_top;
 		uvm_resource_db#(virtual control_if)::set
 			(.scope("ifs"), .name("control_if"), .val(ctrl_vif));
     uvm_resource_db#(virtual dualport_bus)::set
-			(.scope("ifs"), .name("dualport_bus"), .val(instr_vif));
+			(.scope("ifs"), .name("dualport_bus_instr"), .val(instr_vif));
     uvm_resource_db#(virtual dualport_bus)::set
-			(.scope("ifs"), .name("dualport_bus"), .val(mem_vif));
+			(.scope("ifs"), .name("dualport_bus_mem"), .val(mem_vif));
 
 		//Executes the test
 		run_test();
@@ -42,20 +42,16 @@ module riscv_tb_top;
 	//Variable initialization
 
   initial begin
-    ctrl_vif.clk = 1'b0;
-    ctrl_vif.i_boot_addr = 32'h0000_0000;
-    ctrl_vif.rst_n = 1'b1;
-    instr_vif.rd_data = 32'h0000_0000;
+    ctrl_vif.clk <= 1'b1;
+    ctrl_vif.i_boot_addr <= 32'h0000_0000;
+    ctrl_vif.rst_n <= 1'b1;
+    instr_vif.rd_data <= 32'h0000_0000;
   end
 
   assign instr_vif.rd_gnt = instr_vif.rd_req;
   assign instr_vif.wr_gnt = instr_vif.wr_req;
   assign mem_vif.rd_gnt = mem_vif.rd_req;
   assign mem_vif.wr_gnt = mem_vif.wr_req;
-
-	initial begin
-		ctrl_vif.clk <= 1'b1;
-	end
 
   initial begin
     #10;

@@ -10,14 +10,14 @@ class riscv_scoreboard extends uvm_scoreboard;
 	uvm_tlm_analysis_fifo #(riscv_transaction) before_fifo;
 	uvm_tlm_analysis_fifo #(riscv_transaction) after_fifo;
 
-	riscv_transaction transaction_before;
-	riscv_transaction transaction_after;
+	riscv_transaction tx_before;
+	riscv_transaction tx_after;
 
 	function new(string name, uvm_component parent);
 		super.new(name, parent);
 
-		transaction_before	= new("transaction_before");
-		transaction_after	= new("transaction_after");
+		tx_before	= new("tx_before");
+		tx_after	= new("tx_after");
 	endfunction: new
 
 	function void build_phase(uvm_phase phase);
@@ -37,19 +37,40 @@ class riscv_scoreboard extends uvm_scoreboard;
 
 	task run();
 		forever begin
-			before_fifo.get(transaction_before);
-			after_fifo.get(transaction_after);
+			before_fifo.get(tx_before);
+			after_fifo.get(tx_after);
 			
 			compare();
 		end
 	endtask: run
 
 	virtual function void compare();
-		`uvm_info("compare", {"Test: compare OK!"}, UVM_LOW);
-		// if(transaction_before.out == transaction_after.out) begin
-		// 	`uvm_info("compare", {"Test: OK!"}, UVM_LOW);
-		// end else begin
-		// 	`uvm_info("compare", {"Test: Fail!"}, UVM_LOW);
-		// end
+		`uvm_info("compare", $sformatf("PC Test:\nbefore: %d\nafter : %d", $signed(tx_before.pc), $signed(tx_after.pc)), UVM_LOW);
+		if (tx_before.pc == tx_after.pc) begin
+			`uvm_info("compare", $sformatf("PC Test OK!"), UVM_LOW);
+		end else begin
+			`uvm_info("compare", $sformatf("PC Test Failed!"), UVM_LOW);
+		end
+
+		`uvm_info("compare", $sformatf("RAM READ Test: \nbefore: mem_rd.req: %d, mem_rd.addr: %x \nafter : mem_rd.req: %d, mem_rd.addr: %x ", tx_before.mem_rd.req, tx_before.mem_rd.addr, tx_after.mem_rd.req, tx_after.mem_rd.addr), UVM_LOW);
+
+		if (tx_before.mem_rd.req == tx_after.mem_rd.req && 
+			tx_before.mem_rd.addr == tx_after.mem_rd.addr) begin
+			`uvm_info("compare", $sformatf("RAM READ Test OK!"), UVM_LOW);
+		end else begin
+			`uvm_info("compare", $sformatf("RAM READ Test Failed!"), UVM_LOW);
+		end
+
+		`uvm_info("compare", $sformatf("RAM WRITE Test: \nbefore: mem_wr.req: %x, mem_wr.addr: %x, mem_wr.data: %x \nafter : mem_wr.req: %x, mem_wr.addr: %x, mem_wr.data: %x ", tx_before.mem_wr.req, tx_before.mem_wr.addr, tx_before.mem_wr.data, tx_after.mem_wr.req, tx_after.mem_wr.addr, tx_after.mem_wr.data), UVM_LOW);
+
+		if (tx_before.mem_wr.req == tx_after.mem_wr.req && 
+			tx_before.mem_wr.addr == tx_after.mem_wr.addr &&
+			tx_before.mem_wr.data == tx_after.mem_wr.data) begin
+			`uvm_info("compare", $sformatf("RAM READ Test OK!"), UVM_LOW);
+		end else begin
+			`uvm_info("compare", $sformatf("RAM READ Test Failed!"), UVM_LOW);
+		end
+
+
 	endfunction: compare
 endclass: riscv_scoreboard
