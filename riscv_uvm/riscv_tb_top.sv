@@ -53,15 +53,21 @@ module riscv_tb_top;
   assign mem_vif.rd_gnt = mem_vif.rd_req;
   assign mem_vif.wr_gnt = mem_vif.wr_req;
 
-  always_ff @ (mem_vif.rd_addr) begin
-    mem_vif.rd_data = $random(mem_vif.rd_addr);
-  end
 
   initial begin
     #10;
     ctrl_vif.rst_n = 1'b0;
     #10;
     ctrl_vif.rst_n = 1'b1;
+  end
+
+  always_ff @ (mem_vif.rd_addr or negedge ctrl_vif.rst_n) begin
+    if (!ctrl_vif.rst_n) begin
+      mem_vif.rd_data = 0;
+    end else begin
+      mem_vif.rd_data = mem_vif.rd_addr + 1;
+      // mem_vif.rd_data = $random(mem_vif.rd_addr);
+    end
   end
 
 	//Clock generation
