@@ -71,7 +71,7 @@ class riscv_driver extends uvm_driver#(riscv_transaction);
           end
           SW: begin
             instr_vif.rd_data = {rv_tx.imm[11:5], rv_tx.rs2, rv_tx.rs1, 3'b010, rv_tx.imm[4:0], 7'b0100011}; 
-            `uvm_info("rv_driver", $sformatf("store to address %d + %d to %d", rv_tx.rs1,$signed(rv_tx.imm),rv_tx.rd), UVM_LOW);
+            `uvm_info("rv_driver", $sformatf("store to address %d + %d from %d", rv_tx.rs1,$signed(rv_tx.imm),rv_tx.rs2), UVM_LOW);
           end
           LW: begin
             instr_vif.rd_data = {rv_tx.imm, rv_tx.rs1, 3'b010, rv_tx.rd, 7'b0000011};
