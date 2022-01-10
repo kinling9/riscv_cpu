@@ -396,7 +396,7 @@ class riscv_monitor_after extends uvm_monitor;
         mem_rd_delay[4].addr = reg_ram[rv_tx.rs1] + imm_expand;
         // reg_ram[rv_tx.rd] = mem_vif.rd_data;
         mem_rd_delay[4].addr[1:0] = 2'b00;
-        reg_ram[rv_tx.rd] = mem_rd_delay[4].addr + 1;
+        reg_ram[rv_tx.rd] = $random(int'(mem_rd_delay[4].addr));
         mem_rd_delay[4].req = 1;
         `uvm_info("rv_mon_after read RAM", $sformatf("rs1_data: %x, imm_expand: %d,",  reg_ram[rv_tx.rs1], $signed(imm_expand)), UVM_LOW);
       end

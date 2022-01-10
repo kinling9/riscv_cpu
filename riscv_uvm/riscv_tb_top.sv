@@ -65,8 +65,8 @@ module riscv_tb_top;
     if (!ctrl_vif.rst_n) begin
       mem_vif.rd_data = 0;
     end else begin
-      mem_vif.rd_data = mem_vif.rd_addr + 1;
-      // mem_vif.rd_data = $random(mem_vif.rd_addr);
+      // mem_vif.rd_data = mem_vif.rd_addr + 1;
+      mem_vif.rd_data = $random(int'(mem_vif.rd_addr));
     end
   end
 
