@@ -82,7 +82,8 @@ class riscv_driver extends uvm_driver#(riscv_transaction);
             `uvm_info("rv_driver", $sformatf("check equ of %d and %d and jump to %d", rv_tx.rs1,rv_tx.rs2, $signed({rv_tx.imm_jal[12], rv_tx.imm[11:1], 1'b0})), UVM_LOW);
           end
           JAL: begin
-            instr_vif.rd_data = {rv_tx.imm_jal[20], rv_tx.imm[10:1], rv_tx.imm[11], rv_tx.imm_jal[19:12], rv_tx.rd, 7'b1101111};
+            // instr_vif.rd_data = {rv_tx.imm_jal[20], rv_tx.imm[10:1], rv_tx.imm[11], rv_tx.imm_jal[19:12], rv_tx.rd, 7'b1101111};
+            instr_vif.rd_data = {rv_tx.imm_jal[20], rv_tx.imm[10:1], rv_tx.imm[11], rv_tx.imm_jal[19:12], 5'b00000, 7'b1101111};
             `uvm_info("rv_driver", $sformatf("jump to %d", $signed({rv_tx.imm_jal[20:12], rv_tx.imm[11:1], 1'b0})), UVM_LOW);
           end
           default: begin

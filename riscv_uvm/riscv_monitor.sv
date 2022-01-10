@@ -61,8 +61,6 @@ class riscv_monitor_after extends uvm_monitor;
   virtual dualport_bus mem_vif;
 
   riscv_transaction rv_tx;
-  riscv_transaction rv_tx_1;
-  riscv_transaction rv_tx_2;
 
   logic [31:0] reg_ram [0:31];
 
@@ -238,10 +236,6 @@ class riscv_monitor_after extends uvm_monitor;
         if (mem_rd_delay[0].req == 1) begin
           rv_tx.mem_rd = mem_rd_delay[0];
         end
-
-        // if (mem_rd_delay[1].req == 1) begin
-        //   reg_ram[mem_rd_delay[1].reg_rd] = mem_vif.rd_data;
-        // end
 
 
         rv_tx_cg = rv_tx;
