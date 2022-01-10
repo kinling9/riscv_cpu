@@ -45,9 +45,6 @@ class riscv_monitor_before extends uvm_monitor;
         rv_tx.mem_wr.data = mem_vif.wr_data;
         //Send the transaction to the analysis port
         // `uvm_info("rv_mon_before", rv_tx.sprint(), UVM_LOW);
-        // `uvm_info("rv_mon_before ROM", $sformatf("pc: %d, ", $signed(rv_tx.pc)), UVM_LOW);
-        // `uvm_info("rv_mon_before read RAM", $sformatf("mem_rd.req: %x, mem_rd.addr: %x", rv_tx.mem_rd.req, rv_tx.mem_rd.addr), UVM_LOW);
-        // `uvm_info("rv_mon_before write RAM", $sformatf("mem_wr.req: %x, mem_wr.addr: %x, mem_wr.data: %x,", rv_tx.mem_wr.req, rv_tx.mem_wr.addr, rv_tx.mem_wr.data), UVM_LOW);
         mon_ap_before.write(rv_tx);
       end
     end
@@ -142,12 +139,16 @@ class riscv_monitor_after extends uvm_monitor;
         
         // Excecute the instruction  
         // if (counter_jal_beq === 0 && (counter_hazard === 0 || counter_hazard === 1)) begin 
-        // $display("start accept_after_hazard: %d", accept_after_hazard);
-        if (counter_jal_beq === 0 && (counter_hazard === 0 || accept_after_hazard === 1)) begin
+
+        if (accept_after_hazard === 1 || (counter_hazard === 0 && counter_jal_beq === 0)) begin
 
           if (accept_after_hazard === 1) begin
             `uvm_info("rv_mon_after", $sformatf("accept right after HAZARD!"), UVM_LOW);
             accept_after_hazard = 0;
+          end
+
+          if (!(counter_jal_beq === 0)) begin
+            --counter_jal_beq;
           end
 
           if ((change_pc_jal_beq === 1)) begin 
@@ -160,9 +161,9 @@ class riscv_monitor_after extends uvm_monitor;
           end */       
 
           push_rd_history();
-          foreach (rd_history[i]) begin
+          /* foreach (rd_history[i]) begin
             $display("%d", rd_history[i]);
-          end 
+          end  */
           for (int i = 3; i > -1; --i) begin
             if ((!(rd_history[i] === 0)) && 
                 (rv_tx.rs1 === rd_history[i] || 
@@ -183,7 +184,6 @@ class riscv_monitor_after extends uvm_monitor;
                 `uvm_info("rv_mon_after", 
                         $sformatf("accept HAZARD after HAZARD!"), UVM_LOW);
               end
-              // $display("i = %d", i);
               break;
               /* accept_after_hazard = 1;
               counter_hazard = i + 1; */
@@ -226,7 +226,6 @@ class riscv_monitor_after extends uvm_monitor;
           end
         end
 
-        // $display("end accept_after_hazard: %d", accept_after_hazard);
         `uvm_info("rv_mon_after", 
                   $sformatf("cur bubble: %d, potential bubble: %d", 
                   counter_hazard, counter_hazard_nxt), UVM_LOW);
@@ -390,7 +389,6 @@ class riscv_monitor_after extends uvm_monitor;
         mem_wr_delay[4].data = reg_ram[rv_tx.rs2];
         mem_wr_delay[4].addr = reg_ram[rv_tx.rs1] + imm_expand;
         mem_wr_delay[4].req = 1;
-        // `uvm_info("rv_mon_after write RAM", $sformatf("mem_wr.req: %x, mem_wr.addr: %x, mem_wr.data: %x,imm = %x", rv_tx.mem_wr.req, rv_tx.mem_wr.addr, rv_tx.mem_wr.data, $signed(imm_expand)), UVM_LOW);
       end
       LW: begin
         imm_expand[1:0] = 2'b00;
