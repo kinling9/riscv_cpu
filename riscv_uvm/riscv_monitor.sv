@@ -44,7 +44,7 @@ class riscv_monitor_before extends uvm_monitor;
         rv_tx.mem_rd.req = mem_vif.rd_req;
         rv_tx.mem_wr.data = mem_vif.wr_data;
         //Send the transaction to the analysis port
-        //`uvm_info("rv_mon_before", rv_tx.sprint(), UVM_LOW);
+        // `uvm_info("rv_mon_before", rv_tx.sprint(), UVM_LOW);
         // `uvm_info("rv_mon_before ROM", $sformatf("pc: %d, ", $signed(rv_tx.pc)), UVM_LOW);
         // `uvm_info("rv_mon_before read RAM", $sformatf("mem_rd.req: %x, mem_rd.addr: %x", rv_tx.mem_rd.req, rv_tx.mem_rd.addr), UVM_LOW);
         // `uvm_info("rv_mon_before write RAM", $sformatf("mem_wr.req: %x, mem_wr.addr: %x, mem_wr.data: %x,", rv_tx.mem_wr.req, rv_tx.mem_wr.addr, rv_tx.mem_wr.data), UVM_LOW);
@@ -73,8 +73,11 @@ class riscv_monitor_after extends uvm_monitor;
   integer counter_hazard;
   integer counter_hazard_nxt;
   integer counter_jal_beq;
+  integer flush;
   bit change_pc_jal_beq;
-  bit accept_after_hazard;
+  bit accept_after_hazard; 
+  // here accept_after_hazard act as enable pc+=4 after hazard, 
+  // but won't accept until the hazard is fully addressed
   bit [31:0] beq_jal_pc;
   instr_type instr_type_after;
   
@@ -113,6 +116,7 @@ class riscv_monitor_after extends uvm_monitor;
     counter_jal_beq = 0;
     change_pc_jal_beq = 0;
     accept_after_hazard = 0;
+    flush = 0;
     foreach (reg_ram[i]) begin
       reg_ram[i] = 0;
     end
@@ -127,111 +131,93 @@ class riscv_monitor_after extends uvm_monitor;
         rv_tx_init();
         
 				instr_decode();
+         
         // `uvm_info("rv_mon_after", rv_tx.sprint(), UVM_LOW);
         
         // `uvm_info("rv_mon_after", $sformatf("instr:%s, rs2:%d, rs1:%d, rd:%d, imm:%x, imm_jal:%x, instr_vif.rd_data:%x", rv_tx.instr.name(), rv_tx.rs2, rv_tx.rs1, rv_tx.rd, rv_tx.imm, {rv_tx.imm_jal, rv_tx.imm[11:1]}, instr_vif.rd_data), UVM_LOW);        
-
         
         // Excecute the instruction  
-        if ((counter_hazard === 0) && !(counter_hazard_nxt === 0)) begin
-          counter_hazard = counter_hazard_nxt;
-          accept_after_hazard = 0;
-          counter_hazard_nxt = 0;
+        // if (counter_jal_beq === 0 && (counter_hazard === 0 || counter_hazard === 1)) begin 
+        // $display("start accept_after_hazard: %d", accept_after_hazard);
+        if (counter_jal_beq === 0 && (counter_hazard === 0 || accept_after_hazard === 1)) begin
 
-          for (int i = 2; i >= 0; --i) begin
-            if ((!(rd_history[i] === 0)) && 
-                (rv_tx.rs1 === rd_history[i] || 
-                rv_tx.rs2 === rd_history[i])) begin
-              counter_hazard_nxt = i + 1;
-              `uvm_info("rv_mon_after", $sformatf("sub instruction causes HAZARD! cur bubble num: %d, potential bubble num: %d", counter_hazard, counter_hazard_nxt), UVM_LOW);
-              break;
-            end
-          end
-          for (int j = 0; j < counter_hazard_nxt - 1; ++j) begin
-            pop_rd_history();
-          end
-          if ((change_pc_jal_beq === 1)) begin 
-            rv_tx.pc = beq_jal_pc;
-            change_pc_jal_beq = 0;
-          end else begin
-            rv_tx.pc += 4;
-          end                    
-          
-          delay_mem();
-          execute();
-
-          if (instr_type_after == R_TYPE || 
-              instr_type_after == I_TYPE) begin
-            push_rd_history();
-          end 
-          foreach(rd_history[i]) begin
-            `uvm_info("rv_mon_after", $sformatf("%d",rd_history[i]), UVM_LOW);
-          end
-
-        end else if (counter_jal_beq === 0 && (counter_hazard === 0 || accept_after_hazard === 1)) begin 
-          
           if (accept_after_hazard === 1) begin
-            `uvm_info("rv_mon_after", $sformatf("accept this instruction right after HAZARD! bubble num: %d", counter_hazard), UVM_LOW);
+            `uvm_info("rv_mon_after", $sformatf("accept right after HAZARD!"), UVM_LOW);
             accept_after_hazard = 0;
           end
 
-          for (int i = 2; i >= 0; --i) begin
+          if ((change_pc_jal_beq === 1)) begin 
+            rv_tx.pc = beq_jal_pc;
+            change_pc_jal_beq = 0;
+          end else begin //if (counter_hazard === 0)
+            rv_tx.pc += 4;
+          end /* else if (counter_hazard === 1) begin
+            --counter_hazard;
+          end */       
+
+          flush = 0;
+          // push_rd_history();
+          foreach (rd_history[i]) begin
+            $display("%d", rd_history[i]);
+          end 
+          for (int i = 2; i > -1; --i) begin
             if ((!(rd_history[i] === 0)) && 
                 (rv_tx.rs1 === rd_history[i] || 
                 rv_tx.rs2 === rd_history[i])) begin
               if (counter_hazard === 0) begin
                 accept_after_hazard = 1;
                 counter_hazard = i + 1;
-                for (int j = 0; j < i + 1; ++j) begin
+                rd_history[i] = 0;
+                for(int j = 0; j < i + 1; ++j) begin
                   pop_rd_history();
                 end
-                // break;
-              end else begin  
+                `uvm_info("rv_mon_after", 
+                        $sformatf("this instr causes HAZARD!"), UVM_LOW);
+              end else begin 
                 accept_after_hazard = 0;
                 counter_hazard_nxt = i + 1;
-                for (int j = 0; j <= counter_hazard_nxt - 1; ++j) begin
+                for(int j = 0; j < i + 1; ++j) begin
                   pop_rd_history();
                 end
+                `uvm_info("rv_mon_after", 
+                        $sformatf("accept HAZARD after HAZARD!"), UVM_LOW);
               end
-
-              `uvm_info("rv_mon_after", $sformatf("this instruction causes HAZARD! cur bubble num: %d, potential bubble num: %d", counter_hazard, counter_hazard_nxt), UVM_LOW);
+              // $display("i = %d", i);
               break;
+              /* accept_after_hazard = 1;
+              counter_hazard = i + 1; */
             end
-          end
-
-          
-
-          if ((change_pc_jal_beq === 1)) begin 
-            rv_tx.pc = beq_jal_pc;
-            change_pc_jal_beq = 0;
-          end else begin
-            rv_tx.pc += 4;
-          end                    
+          end             
           
           delay_mem();
+          
           execute();
-          foreach(rd_history[i]) begin
-            `uvm_info("rv_mon_after", $sformatf("%d",rd_history[i]), UVM_LOW);
-          end
-          if (instr_type_after == R_TYPE || 
-              instr_type_after == I_TYPE) begin
-            push_rd_history();
-            // if (accept_after_hazard) begin
-            //   push_rd_history(0);
-            // end
-          end 
-          foreach(rd_history[i]) begin
-            `uvm_info("rv_mon_after", $sformatf("%d",rd_history[i]), UVM_LOW);
-          end
+        /* end else if (accept_after_hazard === 1) begin
+          rv_tx.pc += 4;
+          accept_after_hazard = 0;
+          `uvm_info("rv_mon_after", "REJECT because of HAZARD!", UVM_LOW);
+        end */ 
         end else if (!(counter_hazard === 0)) begin 
           --counter_hazard;
+
+          //simulate half of the pipeline moves 
+          half_delay();
+          
+          foreach (rd_history[i]) begin
+            $display("%d", rd_history[i]);
+          end 
+          
           `uvm_info("rv_mon_after", "REJECT because of HAZARD!", UVM_LOW);
-        // end else if ((counter_hazard === 0) && !(counter_hazard_nxt === 0)) begin
-        //   counter_hazard = counter_hazard_nxt;
-        //   accept_after_hazard = 0;
-        //   counter_hazard_nxt = 0;
+          if ((counter_hazard === 0) && !(counter_hazard_nxt === 0)) begin
+            counter_hazard = counter_hazard_nxt;
+            accept_after_hazard = 1;
+            counter_hazard_nxt = 0;
+            `uvm_info("rv_mon_after", "prepare for chain HAZARD!", UVM_LOW);
+          end
         end else if (!(counter_jal_beq === 0)) begin 
+          pop_rd_history();
           --counter_jal_beq;
+          delay_mem();
           rv_tx.pc += 4;
           `uvm_info("rv_mon_after", "REJECT because of previous JAL or BEQ!", UVM_LOW);
           change_pc_jal_beq = 0;
@@ -240,6 +226,8 @@ class riscv_monitor_after extends uvm_monitor;
             --counter_jal_beq;
           end
         end
+
+        // $display("end accept_after_hazard: %d", accept_after_hazard);
         `uvm_info("rv_mon_after", 
                   $sformatf("cur bubble: %d, potential bubble: %d", 
                   counter_hazard, counter_hazard_nxt), UVM_LOW);
@@ -250,7 +238,6 @@ class riscv_monitor_after extends uvm_monitor;
         if (mem_rd_delay[0].req == 1) begin
           rv_tx.mem_rd = mem_rd_delay[0];
         end
-        
 
 
         rv_tx_cg = rv_tx;
@@ -372,6 +359,8 @@ class riscv_monitor_after extends uvm_monitor;
 
   virtual function void execute();
     bit [31:0] imm_expand = {rv_tx.imm_jal, rv_tx.imm}; 
+    push_rd_history();
+    // rd_history[2] = rv_tx.rd;
     rv_tx.valid_instr = 1;
     case (rv_tx.instr)
       AND: begin 
@@ -427,17 +416,18 @@ class riscv_monitor_after extends uvm_monitor;
     endcase
   endfunction: execute
 
+  virtual function void pop_rd_history();
+    rd_history[0] = rd_history[1];
+    rd_history[1] = rd_history[2];
+    rd_history[2] = 0;
+  endfunction: pop_rd_history
+
   virtual function void push_rd_history();
     rd_history[0] = rd_history[1];
     rd_history[1] = rd_history[2];
     rd_history[2] = rv_tx.rd;
   endfunction: push_rd_history
 
-  virtual function void pop_rd_history();
-    rd_history[0] = rd_history[1];
-    rd_history[1] = rd_history[2];
-    rd_history[2] = 0;
-  endfunction: pop_rd_history
 
   virtual function void delay_mem();
     mem_rd_delay[0] = mem_rd_delay[1];
@@ -453,5 +443,17 @@ class riscv_monitor_after extends uvm_monitor;
     mem_wr_delay[4] = '{0,0,0};
   endfunction: delay_mem
 
+  virtual function void half_delay();
+    mem_rd_delay[0] = mem_rd_delay[1];
+    mem_rd_delay[1] = mem_rd_delay[2];
+    mem_rd_delay[2] = '{0,0};
 
-endclass: riscv_monitor_after
+    mem_wr_delay[0] = mem_wr_delay[1];
+    mem_wr_delay[1] = mem_wr_delay[2];
+    mem_wr_delay[2] = '{0,0,0};
+
+    // rd_history[0] = rd_history[1];
+    // rd_history[1] = 0;
+  endfunction: half_delay
+
+endclass: riscv_monitor_after 
